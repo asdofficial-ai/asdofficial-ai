@@ -5,7 +5,7 @@ export class WakeListener {
   enabled = false; recognition; timer; paused = false;
   constructor(onWake, onStatus, Recognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition) { this.Recognition = Recognition; this.onWake = onWake; this.onStatus = onStatus; }
   enable() { if (!this.Recognition) throw new Error('Wake word is unavailable in this browser. Use the microphone button.'); this.enabled = true; this.onStatus('Wake word enabled'); this.resume(); }
-  pause() { this.paused = true; clearTimeout(this.timer); const recognition = this.recognition; this.recognition = undefined; recognition?.abort(); }
+  pause() { this.paused = true; clearTimeout(this.timer); const recognition = this.recognition; this.recognition = undefined; recognition?.abort(); if (this.enabled) this.onStatus('Wake word paused'); }
   resume() {
     this.paused = false;
     if (!this.enabled || this.recognition) return;
