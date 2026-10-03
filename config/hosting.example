@@ -1,0 +1,7 @@
+# Configure these on the hosting backend, never in browser code.
+NODE_ENV=production
+HOST=0.0.0.0
+PORT=3001
+PUBLIC_ORIGIN=https://PASTE_KANE_HOSTNAME_HERE
+APP_PASSWORD=PASTE_A_UNIQUE_PASSWORD_OF_AT_LEAST_16_CHARACTERS_HERE
+DATABASE_PATH=/var/data/kane.sqlite
