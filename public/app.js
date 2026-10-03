@@ -1,6 +1,7 @@
 import { startOrb } from './orb.js';
 import { VoiceCapture } from './voice.js';
 import { assistantExtras } from './assistant-extras.js';
+import { isDismissCommand } from './wake.js';
 const $ = id => document.getElementById(id);
 let session, controller, busy = false, generation = 0, capabilities, marketData, devices = [], kind = 'notes', editing, deferredInstall;
 const capture = new VoiceCapture(), cpuSamples = [];
@@ -20,10 +21,12 @@ function empty(target, text) { $(target).replaceChildren(element('p', text, 'emp
 function stop() {
   extras?.wake.disable();
   generation++; controller?.abort(); capture.cancel(); playback.pause();
-  if (playback.src) { URL.revokeObjectURL(playback.src); playback.removeAttribute('src'); } playback.hidden = true;
+  playback.onended = null; playback.onerror = null;
+  if (playback.src) { URL.revokeObjectURL(playback.src); playback.removeAttribute('src'); playback.load(); } playback.hidden = true;
   if (session) api(`/api/sessions/${session}/cancel`, 'POST').catch(() => {});
   busy = false; $('send').disabled = false; state('idle');
 }
+function dismiss() { stop(); state('dismissed'); $('status').textContent = 'Dismissed · silent · voice listening off. Enable Hey Kane to reactivate voice commands.'; }
 async function create() { stop(); session = (await api('/api/sessions', 'POST')).session.id; localStorage.setItem('kane-session', session); $('session-label').textContent = 'Session ' + session.slice(0, 6); $('history').replaceChildren(); state('idle'); }
 function message(role, content) {
   const node = element('div', undefined, 'message ' + role), label = element('span', role === 'user' ? 'You' : 'Kane', 'role'), text = element('span', content);
@@ -42,15 +45,17 @@ async function speak(answer, current) {
   const audio = await response.blob(); if (current !== generation) return;
   playback.src = URL.createObjectURL(audio); playback.hidden = false;
   playback.onended = () => { if (current === generation) state('idle'); };
-  playback.onerror = () => state('Audio playback failed.');
-  try { await playback.play(); } catch { state('Voice is ready. Press Play to hear it.'); }
+  playback.onerror = () => { if (current === generation) state('Audio playback failed.'); };
+  try { await playback.play(); } catch { if (current === generation) state('Voice is ready. Press Play to hear it.'); }
 }
 $('form').onsubmit = async event => {
-  event.preventDefault(); if (busy || !session) return;
-  extras?.wake.pause();
+  event.preventDefault();
+  if (isDismissCommand($('text').value)) { $('text').value = ''; dismiss(); return; }
+  if (busy || !session) return;
   capture.cancel(); playback.pause();
   const text = $('text').value.trim(); if (!text) return;
   busy = true; $('send').disabled = true; const current = ++generation; controller = new AbortController();
+  extras?.wake.setMode('controls');
   message('user', text); const output = message('assistant', ''); $('text').value = ''; let answer = '';
   try {
     const response = await fetch(`/api/sessions/${session}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, requestId: crypto.randomUUID(), research: $('research-mode').checked }), signal: controller.signal });
@@ -77,12 +82,12 @@ $('mic').onclick = async () => {
   if (capture.recorder?.state === 'recording') { capture.finish(); return; }
   const wakeEnabled = extras?.wake.enabled; stop(); if (wakeEnabled) { extras.wake.enabled = true; extras.wake.pause(); } const current = generation;
   state('requesting microphone');
-  try { await capture.start(state, async blob => {
+  try { await capture.start(value => { if (current === generation) state(value); }, async blob => {
     if (current !== generation) return;
     controller = new AbortController();
-    try { const response = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob, signal: controller.signal }); if (!response.ok) throw new Error((await response.json()).error); const data = await response.json(); if (current !== generation) return; $('text').value = data.text; state('idle'); if (data.text.trim()) $('form').requestSubmit(); }
+    try { const response = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob, signal: controller.signal }); if (!response.ok) throw new Error((await response.json()).error); const data = await response.json(); if (current !== generation) return; if (isDismissCommand(data.text)) { dismiss(); return; } $('text').value = data.text; state('idle'); if (data.text.trim()) $('form').requestSubmit(); }
     catch (error) { if (current === generation) notify(error); }
-  }); } catch (error) { notify(error); }
+  }); } catch (error) { if (current === generation) notify(error); }
 };
 document.addEventListener('keydown', event => { if (event.ctrlKey && event.code === 'Space') { event.preventDefault(); $('mic').click(); } if (event.key === 'Escape') stop(); });
 $('cancel').onclick = stop; $('new').onclick = () => create().catch(notify);
@@ -183,7 +188,7 @@ document.querySelectorAll('[data-prompt]').forEach(node => node.onclick = () => 
 $('login-form').onsubmit = async event => { event.preventDefault(); try { await api('/api/auth/login', 'POST', { password: $('password').value }); $('password').value = ''; $('login').close(); await initialize(); } catch (error) { $('login-error').textContent = error.message; } };
 $('login').addEventListener('cancel', event => event.preventDefault());
 window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstall = event; $('install').hidden = false; }); $('install').onclick = async () => { await deferredInstall?.prompt(); deferredInstall = undefined; $('install').hidden = true; };
-async function initialize() { try { await connections(); await restore(); await refresh(); if (!extras) extras = assistantExtras({ api, notify, canListen: () => Boolean(session) && !busy && !capture.recorder && playback.paused && !['requesting microphone','transcribing','listening','speaking'].includes(document.body.dataset.state) && !$('login').open, onWake: command => { if (command) { $('text').value = command; $('form').requestSubmit(); } else $('mic').click(); } }); await extras.refresh(); await loadMarket(); } catch (error) { notify(error); } }
+async function initialize() { try { await connections(); await restore(); await refresh(); if (!extras) extras = assistantExtras({ api, notify, onDismiss: dismiss, canControl: () => Boolean(session) && !capture.recorder && !['requesting microphone','transcribing','listening'].includes(document.body.dataset.state) && !$('login').open, canListen: () => Boolean(session) && !busy && !capture.recorder && playback.paused && !['requesting microphone','transcribing','listening','speaking'].includes(document.body.dataset.state) && !$('login').open, onWake: command => { if (command) { $('text').value = command; $('form').requestSubmit(); } else $('mic').click(); } }); await extras.refresh(); await loadMarket(); } catch (error) { notify(error); } }
 setInterval(() => { $('clock').textContent = new Date().toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }, 1000);
 setInterval(() => { if (!document.hidden) Promise.all([telemetry(), phoneDevices()]).catch(() => { $('online').textContent = 'Offline'; }); }, 10000);
 window.addEventListener('pagehide', () => { capture.cancel(); controller?.abort(); playback.pause(); });

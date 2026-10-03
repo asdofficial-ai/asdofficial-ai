@@ -1,11 +1,11 @@
 import { WakeListener } from './wake.js';
 const node = (tag, text) => { const result = document.createElement(tag); if (text !== undefined) result.textContent = text; return result; };
-export function assistantExtras({ api, onWake, canListen, notify }) {
+export function assistantExtras({ api, onWake, onDismiss, canListen, canControl, notify }) {
   const panel = node('section'); panel.className = 'panel';
   const heading = node('h2', 'VOICE & REMINDERS'), wakeButton = node('button', 'Enable “Hey Kane”'), wakeStatus = node('p', 'Wake word off');
   wakeButton.className = 'outline full'; wakeButton.id = 'wake-toggle'; wakeStatus.className = 'fine'; wakeStatus.id = 'wake-status'; wakeStatus.setAttribute('role', 'status');
-  const privacy = node('p', 'Opt-in browser recognition may send audio to your browser provider. Keep Kane visible. Listening pauses during replies; Stop disables it.'); privacy.className = 'fine';
-  const wake = new WakeListener(onWake, text => { wakeStatus.textContent = text; wakeButton.textContent = wake.enabled ? 'Disable wake word' : 'Enable “Hey Kane”'; });
+  const privacy = node('p', 'Opt-in browser recognition may send audio to your browser provider. During replies, only dismissal commands are active. Say “dismiss” or “you are dismissed” to silence Kane and turn listening off. Keep Kane visible; Stop also disables listening.'); privacy.className = 'fine';
+  const wake = new WakeListener(onWake, text => { wakeStatus.textContent = text; wakeButton.textContent = wake.enabled ? 'Disable voice commands' : 'Enable “Hey Kane”'; }, undefined, onDismiss);
   wakeButton.disabled = !wake.Recognition;
   if (!wake.Recognition) wakeStatus.textContent = 'Browser wake recognition unavailable; use the microphone.';
   wakeButton.onclick = () => { if (wake.enabled) wake.disable(); else if (confirm('Enable wake-word listening? Chrome may send microphone audio to its speech service. Kane must stay open and visible. You can disable it at any time.')) { try { wake.enable(); if (document.hidden || !canListen()) wake.pause(); } catch (error) { notify(error); } } };
@@ -45,7 +45,7 @@ export function assistantExtras({ api, onWake, canListen, notify }) {
   }
   form.onsubmit = async event => { event.preventDefault(); try { const timestamp = new Date(due.value); if (!Number.isFinite(timestamp.getTime())) throw new Error('Choose a valid date and time.'); await api('/api/reminders','POST',{ title: title.value, dueAt: timestamp.toISOString(), repeatHours: Number(repeat.value) }); form.reset(); await refresh(); } catch (error) { notify(error); } };
   focus.onclick = async () => { try { await api('/api/reminders','POST',{ title: 'Focus session complete — take a short break', dueAt: new Date(Date.now() + 25 * 60000).toISOString() }); await refresh(); } catch (error) { notify(error); } };
-  const timer = setInterval(() => { if (wake.enabled) { if (document.hidden || !canListen()) { if (!wake.paused) wake.pause(); } else if (wake.paused) wake.resume(); } }, 500);
+  const timer = setInterval(() => { if (wake.enabled) { if (document.hidden || !canControl()) { if (!wake.paused) wake.pause(); } else { wake.setMode(canListen() ? 'wake' : 'controls'); if (wake.paused) wake.resume(); } } }, 250);
   const poll = setInterval(refresh, 10000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) wake.pause(); else refresh(); });
   window.addEventListener('pagehide', () => { wake.disable(); clearInterval(timer); clearInterval(poll); });
