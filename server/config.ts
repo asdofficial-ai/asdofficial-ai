@@ -44,6 +44,6 @@ export function capabilityStatus(config: ReturnType<typeof readConfig>) {
       : status(config.stt.provider, { STT_PROVIDER: config.stt.provider, STT_API_KEY: config.stt.key, STT_MODEL: config.stt.model }, 'groq'),
     voiceGeneration: status(config.tts.provider, { TTS_PROVIDER: config.tts.provider, TTS_API_KEY: config.tts.key, TTS_MODEL: config.tts.model, TTS_VOICE_ID: config.tts.voice }, 'fish'),
     search: status(config.search.provider, { SEARCH_PROVIDER: config.search.provider, SEARCH_API_KEY: config.search.key }, 'groq'),
-    wakeWord: { available: false, status: 'not_implemented' }
+    wakeWord: { available: false, status: 'requires_browser_permission', implemented: true }
   };
 }

@@ -12,6 +12,7 @@ import { Phone } from './phone.ts';
 import { search } from './research.ts';
 import { market, forexPairs } from './markets.ts';
 import { transcribe } from './transcribe.ts';
+import { Reminders } from './reminders.ts';
 import { totalmem, cpus, uptime } from 'node:os';
 
 try { loadEnvironment(); }
@@ -27,6 +28,7 @@ const auth = new Auth(process.env.APP_PASSWORD || '', publicOrigin.startsWith('h
 const store = new Store();
 const engine = new Engine(store, config);
 const phone = new Phone(store);
+const reminders = new Reminders(store);
 let previousCpu = process.cpuUsage(); let previousTime = Date.now();
 let loginWindow = Date.now(); let loginAttempts = 0;
 let rateWindow = Date.now();
@@ -57,7 +59,7 @@ const server = createServer(async (request, response) => {
     const path = new URL(request.url || '/', 'http://127.0.0.1:3001').pathname;
     const sessionRoute = path.match(/^\/api\/sessions\/([\w-]+)(?:\/(messages|cancel))?$/);
     const itemRoute = path.match(/^\/api\/(memories|notes|tasks)(?:\/([\w-]+))?$/);
-    const assets: Record<string, [string, string]> = { '/': ['index.html','text/html'], '/app.js': ['app.js','text/javascript'], '/cockpit.css': ['cockpit.css','text/css'], '/orb.js': ['orb.js','text/javascript'], '/voice.js': ['voice.js','text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest','application/manifest+json'], '/sw.js': ['sw.js','text/javascript'], '/icon.svg': ['icon.svg','image/svg+xml'], '/phone': ['phone.html','text/html'], '/phone.js': ['phone.js','text/javascript'] };
+    const assets: Record<string, [string, string]> = { '/': ['index.html','text/html'], '/app.js': ['app.js','text/javascript'], '/cockpit.css': ['cockpit.css','text/css'], '/orb.js': ['orb.js','text/javascript'], '/voice.js': ['voice.js','text/javascript'], '/assistant-extras.js': ['assistant-extras.js','text/javascript'], '/wake.js': ['wake.js','text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest','application/manifest+json'], '/sw.js': ['sw.js','text/javascript'], '/icon.svg': ['icon.svg','image/svg+xml'], '/phone': ['phone.html','text/html'], '/phone.js': ['phone.js','text/javascript'] };
     if (request.method === 'GET' && assets[path]) {
       response.setHeader('Content-Type', assets[path][1] + '; charset=utf-8');
       response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
@@ -70,6 +72,11 @@ const server = createServer(async (request, response) => {
       auth.login((await body(request)).password, response); response.end(JSON.stringify({ authenticated: true })); return;
     }
     if (!auth.authenticated(request)) throw new ProviderError('login_required', 401);
+    if (path === '/api/reminders' && request.method === 'GET') { response.end(JSON.stringify({ reminders: reminders.list(), serverTime: new Date().toISOString() })); return; }
+    if (path === '/api/reminders' && request.method === 'POST') { const input = await body(request); response.statusCode = 201; response.end(JSON.stringify({ reminder: reminders.create(input.title, input.dueAt, input.repeatHours) })); return; }
+    const reminderRoute = path.match(/^\/api\/reminders\/([\w-]+)$/);
+    if (reminderRoute && request.method === 'PATCH') { reminders.act(reminderRoute[1], (await body(request)).action); response.end(JSON.stringify({ updated: true })); return; }
+    if (reminderRoute && request.method === 'DELETE') { reminders.delete(reminderRoute[1]); response.end(JSON.stringify({ deleted: true })); return; }
     if (path === '/api/auth/logout' && request.method === 'POST') { auth.logout(request, response); response.end(JSON.stringify({ loggedOut: true })); return; }
     if (path === '/api/telemetry' && request.method === 'GET') {
       const currentCpu = process.cpuUsage(); const now = Date.now(); const delta = (currentCpu.user - previousCpu.user + currentCpu.system - previousCpu.system) / 1000;
@@ -181,7 +188,7 @@ const server = createServer(async (request, response) => {
       }
     } finally { clearTimeout(timeout); }
   } else if (request.method === 'GET' && request.url === '/api/capabilities') {
-    response.end(JSON.stringify({ capabilities: { ...capabilities, memory: { available: store.memoryEnabled() }, persistence: { available: true }, streaming: { available: capabilities.text.available }, scheduling: { available: false }, tools: { available: true, modelToolCalling: false }, markets: { available: true, type: 'daily_forex_reference' }, phone: { available: true, actions: ['open_url','dial_number','draft_sms'], foregroundOnly: true } } }));
+    response.end(JSON.stringify({ capabilities: { ...capabilities, memory: { available: store.memoryEnabled() }, persistence: { available: true }, streaming: { available: capabilities.text.available }, scheduling: { available: true, delivery: 'open_browser', persistent: true }, tools: { available: true, modelToolCalling: false }, markets: { available: true, type: 'daily_forex_reference' }, phone: { available: true, actions: ['open_url','dial_number','draft_sms'], foregroundOnly: true } } }));
   } else if (request.method === 'GET' && request.url === '/api/health') {
     response.end(JSON.stringify({ status: 'ok' }));
   } else {

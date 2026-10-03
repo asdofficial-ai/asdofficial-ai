@@ -10,7 +10,7 @@ Implemented features:
 
 - Black and gold cockpit inspired by the reference, with actual backend telemetry and decorative orbital graphics.
 - Streamed conversations, cancellation, persistent sessions, explicit memories, notes and tasks.
-- Microphone recording with silence detection, Groq transcription and Fish playback. No wake word or background listening.
+- Microphone recording with silence detection, Groq transcription and Fish playback. Opt-in browser wake phrases: Hey Kane and Hey K. Listening pauses while recording, transcribing or playing replies. Stop disables it; leaving the page stops listening. Chrome recognition may use its speech service.
 - Groq browser search with source links from provider metadata.
 - Forex daily reference rates from Frankfurter/ECB, five-day statistical baseline intervals, and walk-forward error/coverage metrics. These are experimental scenarios, not guaranteed predictions or executable trading prices. No trades are placed.
 - Android pairing, revocation, exact-action approval and a second phone tap. Actions open HTTPS links, a dialer or an SMS draft. You complete calls and send messages yourself. No lock bypass, camera/files access or background phone control.
@@ -24,4 +24,6 @@ Startup reports capabilities without credentials. Configured availability does n
 
 Run `npm run typecheck` and `npm test`. Live checks: `node --use-system-ca scripts/check-providers.mjs` and `node --use-system-ca scripts/check-extensions.mjs`. These make short billable API requests. `node scripts/smoke.mjs` checks a running server and removes its test records. Tests use fake credentials.
 
-Verified: live text/streaming, Fish audio, transcription of generated audio, research source metadata, Forex data, persistence and automated checks. Physical microphone/speaker behavior, Android handset actions and PWA installation require device testing. History summarization, model-directed external actions, scheduling and reminder notifications are not implemented.
+Verified: live text/streaming, Fish audio, transcription of generated audio, research source metadata, Forex data, persistence and automated checks. Physical microphone/speaker behavior, Android handset actions and PWA installation require device testing. History summarization, model-directed external actions, autonomous scheduling is not implemented. Persistent reminders and open-tab notifications are implemented.
+
+Reminders: use the VOICE & REMINDERS panel, choose a local date/time and save. Dates are stored in UTC. One-time reminders, every-24-hour/every-7-day repetition, snooze, dismissal and a 25-minute focus timer are supported. Repeating reminders use fixed elapsed hours, so the local clock time can shift at daylight-saving changes. Click Enable reminder notifications to grant permission. Kane's server and an open browser tab are required; closed/suspended browsers cannot receive scheduled notifications. Overdue reminders remain in the cockpit after reopening. Wake listening resets off on reload. Browser recognition support and actual microphone/notification delivery require device testing. See https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition and https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/showNotification .
