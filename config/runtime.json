@@ -1,7 +1,7 @@
 {
   "providerTimeoutMs": 30000,
   "contextCharacters": 16000,
-  "outputTokens": 1024,
+  "outputTokens": 2048,
   "requestsPerMinute": 120,
   "voiceSpeed": 1
 }

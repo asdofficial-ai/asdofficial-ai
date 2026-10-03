@@ -22,7 +22,7 @@ export async function* streamChat(config: Config, messages: { role: string; cont
   const response = await transport(new URL('chat/completions', base.href.endsWith('/') ? base : new URL(base.href + '/')), {
     method: 'POST', redirect: 'error', signal,
     headers: { Authorization: `Bearer ${config.text.key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: config.text.model, messages: [{ role: 'system', content: behavior + '\nConfigured language: ' + config.language }, ...messages], stream: true, max_completion_tokens: settings.outputTokens })
+    body: JSON.stringify({ model: config.text.model, messages: [{ role: 'system', content: behavior + '\nConfigured language: ' + config.language }, ...messages], stream: true, max_completion_tokens: settings.outputTokens, ...(/^openai\/gpt-oss-(20b|120b)$/.test(config.text.model) ? { reasoning_effort: 'low' } : {}) })
   });
   await check(response);
   if (!response.body) throw new ProviderError('invalid_provider_response');
@@ -70,7 +70,7 @@ export async function chat(config: Config, text: string, signal: AbortSignal, tr
   const response = await transport(new URL('chat/completions', base.href.endsWith('/') ? base : new URL(base.href + '/')), {
     method: 'POST', redirect: 'error', signal,
     headers: { Authorization: `Bearer ${config.text.key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: config.text.model, messages: [{ role: 'system', content: behavior }, { role: 'user', content: text }], max_completion_tokens: settings.outputTokens })
+    body: JSON.stringify({ model: config.text.model, messages: [{ role: 'system', content: behavior }, { role: 'user', content: text }], max_completion_tokens: settings.outputTokens, ...(/^openai\/gpt-oss-(20b|120b)$/.test(config.text.model) ? { reasoning_effort: 'low' } : {}) })
   });
   await check(response);
   const data = await response.json();

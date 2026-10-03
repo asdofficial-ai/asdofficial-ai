@@ -53,7 +53,8 @@ const server = createServer(async (request, response) => {
   response.setHeader('X-Content-Type-Options', 'nosniff');
   try {
     if (![new URL(publicOrigin).host, `127.0.0.1:${port}`, `localhost:${port}`].includes(request.headers.host || '')) throw new ProviderError('invalid_host', 403);
-    if (request.headers.origin && request.headers.origin !== publicOrigin) throw new ProviderError('origin_not_allowed', 403);
+    const allowedOrigins = publicMode ? [publicOrigin] : [publicOrigin, `http://127.0.0.1:${port}`, `http://localhost:${port}`];
+    if (request.headers.origin && !allowedOrigins.includes(request.headers.origin)) throw new ProviderError('origin_not_allowed', 403);
     if (Date.now() - rateWindow >= 60000) { requests = 0; rateWindow = Date.now(); }
     if (++requests > settings.requestsPerMinute) throw new ProviderError('rate_limit', 429);
     const path = new URL(request.url || '/', 'http://127.0.0.1:3001').pathname;

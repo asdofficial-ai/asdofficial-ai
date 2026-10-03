@@ -10,7 +10,7 @@ let extras;
 function state(value) { document.body.dataset.state = value; $('state-label').textContent = value.toUpperCase(); $('status').textContent = value; $('mic').classList.toggle('recording', value === 'listening'); }
 function notify(error) { state(error.message || String(error)); }
 async function api(path, method = 'GET', body) {
-  const response = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const response = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(10000) });
   const data = await response.json();
   if (response.status === 401) { if (!$('login').open) $('login').showModal(); throw new Error('Sign in to continue.'); }
   if (!response.ok) throw new Error(data.error); return data;
@@ -39,11 +39,13 @@ async function restore() {
   catch (error) { if (!$('login').open) await create(); else throw error; }
 }
 async function speak(answer, current) {
-  state('speaking');
+  state('generating voice');
   const response = await fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: answer.slice(0, 4000) }), signal: controller.signal });
   if (!response.ok) throw new Error((await response.json()).error);
   const audio = await response.blob(); if (current !== generation) return;
   playback.src = URL.createObjectURL(audio); playback.hidden = false;
+  playback.onplaying = () => { if (current === generation) state('speaking'); };
+  playback.onpause = () => { if (current === generation && !playback.ended) state('voice paused'); };
   playback.onended = () => { if (current === generation) state('idle'); };
   playback.onerror = () => { if (current === generation) state('Audio playback failed.'); };
   try { await playback.play(); } catch { if (current === generation) state('Voice is ready. Press Play to hear it.'); }
@@ -56,7 +58,10 @@ $('form').onsubmit = async event => {
   const text = $('text').value.trim(); if (!text) return;
   busy = true; $('send').disabled = true; const current = ++generation; controller = new AbortController();
   extras?.wake.setMode('controls');
-  message('user', text); const output = message('assistant', ''); $('text').value = ''; let answer = '';
+  message('user', text); const output = message('assistant', ''); $('text').value = ''; let answer = '', completed = false;
+  state('thinking'); output.textContent = 'Kane is thinking…';
+  const turnController = controller;
+  const timeout = setTimeout(() => turnController.abort(), 65000);
   try {
     const response = await fetch(`/api/sessions/${session}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, requestId: crypto.randomUUID(), research: $('research-mode').checked }), signal: controller.signal });
     if (!response.ok) throw new Error((await response.json()).error);
@@ -69,14 +74,18 @@ $('form').onsubmit = async event => {
         const data = JSON.parse(line.slice(6)); if (current !== generation) continue;
         if (data.type === 'assistant.state') state(data.state);
         if (data.type === 'tool.started') state('researching');
+        if (data.type === 'tool.failed') { message('assistant', 'Live web search is unavailable. I’ll reply using the available context.'); state('thinking'); }
         if (data.type === 'response.delta') { answer += data.text; output.textContent = answer; $('history').scrollTop = $('history').scrollHeight; }
+        if (data.type === 'response.completed') completed = true;
+        if (data.type === 'turn.cancelled') throw new DOMException('Response cancelled', 'AbortError');
         if (data.type === 'error') throw new Error(data.code);
       }
     }
+    if (!completed || !answer.trim()) throw new Error('No complete reply was received. Please try again.');
     if ($('voice').checked && answer && current === generation) await speak(answer, current);
     await refresh();
-  } catch (error) { if (current === generation) state(error.name === 'AbortError' ? 'idle' : 'error: ' + error.message); }
-  finally { if (current === generation) { busy = false; $('send').disabled = false; } }
+  } catch (error) { if (current === generation) { const reason = error.name === 'AbortError' ? 'Response stopped or timed out. Try again.' : error.message; if (!answer) output.textContent = 'Kane could not reply: ' + reason; if (!completed && !$('text').value) $('text').value = text; state('error: ' + reason); } }
+  finally { clearTimeout(timeout); if (current === generation) { busy = false; $('send').disabled = false; } }
 };
 $('mic').onclick = async () => {
   if (capture.recorder?.state === 'recording') { capture.finish(); return; }
