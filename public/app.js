@@ -47,7 +47,88 @@ $('form').onsubmit = async event => {
   capture.cancel(); playback.pause();
   const text = $('text').value.trim(); if (!text) return;
   busy = true; $('send').disabled = true; const current = ++generation; controller = new AbortController();
-  message('user', text); const output = message('assistant', ''); $('text').value = ''; let answer = ''…2524 tokens truncated…tervalCoverage === null ? 'Unavailable' : (f.backtest.empiricalIntervalCoverage * 100).toFixed(1) + '%']];
+  message('user', text); const output = message('assistant', ''); $('text').value = ''; let answer = '';
+  try {
+    const response = await fetch(`/api/sessions/${session}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, requestId: crypto.randomUUID(), research: $('research-mode').checked }), signal: controller.signal });
+    if (!response.ok) throw new Error((await response.json()).error);
+    const reader = response.body.getReader(), decoder = new TextDecoder(); let buffer = '';
+    while (true) {
+      const chunk = await reader.read(); if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true }); let boundary;
+      while ((boundary = buffer.indexOf('\n\n')) !== -1) {
+        const block = buffer.slice(0, boundary); buffer = buffer.slice(boundary + 2); const line = block.split('\n').find(line => line.startsWith('data: ')); if (!line) continue;
+        const data = JSON.parse(line.slice(6)); if (current !== generation) continue;
+        if (data.type === 'assistant.state') state(data.state);
+        if (data.type === 'tool.started') state('researching');
+        if (data.type === 'response.delta') { answer += data.text; output.textContent = answer; $('history').scrollTop = $('history').scrollHeight; }
+        if (data.type === 'error') throw new Error(data.code);
+      }
+    }
+    if ($('voice').checked && answer && current === generation) await speak(answer, current);
+    await refresh();
+  } catch (error) { if (current === generation) state(error.name === 'AbortError' ? 'idle' : 'error: ' + error.message); }
+  finally { if (current === generation) { busy = false; $('send').disabled = false; } }
+};
+$('mic').onclick = async () => {
+  if (capture.recorder?.state === 'recording') { capture.finish(); return; }
+  stop(); const current = generation;
+  try { await capture.start(state, async blob => {
+    if (current !== generation) return;
+    controller = new AbortController();
+    try { const response = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob, signal: controller.signal }); if (!response.ok) throw new Error((await response.json()).error); const data = await response.json(); if (current !== generation) return; $('text').value = data.text; state('idle'); if (data.text.trim()) $('form').requestSubmit(); }
+    catch (error) { if (current === generation) notify(error); }
+  }); } catch (error) { notify(error); }
+};
+document.addEventListener('keydown', event => { if (event.ctrlKey && event.code === 'Space') { event.preventDefault(); $('mic').click(); } if (event.key === 'Escape') stop(); });
+$('cancel').onclick = stop; $('new').onclick = () => create().catch(notify);
+$('delete').onclick = async () => { if (!session || !confirm('Delete this conversation and its messages?')) return; stop(); try { await api(`/api/sessions/${session}`, 'DELETE'); await create(); } catch (error) { notify(error); } };
+function lineChart(canvas, values) {
+  const context = canvas.getContext('2d'), width = canvas.width, height = canvas.height; context.clearRect(0, 0, width, height); if (!values.length) return;
+  const min = Math.min(...values), max = Math.max(...values), range = Math.max(max - min, max * .0001, .00001);
+  context.strokeStyle = '#33424b'; context.lineWidth = .5;
+  for (let i = 1; i < 5; i++) { context.beginPath(); context.moveTo(0, height * i / 5); context.lineTo(width, height * i / 5); context.stroke(); }
+  context.beginPath(); values.forEach((value, index) => { const x = index * width / Math.max(1, values.length - 1), y = height - 8 - (value - min) / range * (height - 16); index ? context.lineTo(x, y) : context.moveTo(x, y); }); context.strokeStyle = '#ffb329'; context.lineWidth = 2; context.shadowColor = '#ff9816'; context.shadowBlur = 5; context.stroke(); context.shadowBlur = 0;
+}
+async function telemetry() {
+  if ($('login').open) return;
+  const start = performance.now(); const data = await api('/api/telemetry'); $('latency').textContent = Math.round(performance.now() - start) + ' ms';
+  $('cpu').textContent = data.processCpuPercent.toFixed(1) + '%'; cpuSamples.push(data.processCpuPercent); if (cpuSamples.length > 40) cpuSamples.shift(); lineChart($('cpu-chart'), cpuSamples);
+  $('ram').textContent = (data.processMemoryBytes / 1048576).toFixed(0) + ' MB'; $('cores').textContent = data.cores + ' host cores'; $('ram-bar').style.width = Math.min(100, data.processMemoryBytes / data.hostMemoryBytes * 100) + '%';
+  $('uptime').textContent = `Backend uptime ${Math.floor(data.processUptimeSeconds / 60)} min · ${data.activeTurns} active turns`;
+  $('message-count').textContent = data.counts.messages.toLocaleString(); $('memory-count').textContent = data.counts.memories; $('note-count').textContent = data.counts.notes;
+  $('events').replaceChildren(...data.events.slice(0, 7).map(event => { const row = element('li'); row.append(element('time', new Date(event.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })), element('span', event.type)); return row; })); $('event-count').textContent = data.events.length + ' EVENTS';
+  $('online').textContent = 'Online'; document.documentElement.lang = data.language;
+}
+async function workspace() {
+  const data = await api('/api/' + kind); $('items').replaceChildren();
+  if (!data.items.length) empty('items', 'No ' + kind + ' yet. Create your first one.');
+  data.items.forEach(item => {
+    const row = element('div', undefined, 'item'); row.append(element('span', item.content, 'item-text'), button('Edit', () => edit(kind, item)), button('×', async () => { if (confirm('Delete this ' + kind.slice(0, -1) + '?')) { await api(`/api/${kind}/${item.id}`, 'DELETE'); await refresh(); } })); $('items').append(row);
+  });
+  document.querySelectorAll('[data-kind]').forEach(node => node.classList.toggle('active', node.dataset.kind === kind)); $('add-item').textContent = '+ Create ' + ({ notes: 'note', tasks: 'task', memories: 'memory' })[kind];
+}
+async function tasks() {
+  const data = await api('/api/tasks'); $('tasks').replaceChildren(); const open = data.items.filter(item => !item.completed); $('task-count').textContent = open.length + ' OPEN';
+  if (!data.items.length) empty('tasks', 'No tasks running. Set a mission below.');
+  data.items.slice(0, 5).forEach(item => { const row = element('div', undefined, 'task' + (item.completed ? ' done' : '')); const name = element('span', item.content, 'task-name'); name.append(element('small', item.completed ? 'Completed' : 'Ready to work')); row.append(element('span', item.completed ? '✓' : '▣', 'task-icon'), name, button(item.completed ? '↶' : '✓', async () => { await api(`/api/tasks/${item.id}`, 'PATCH', { content: item.content, completed: !item.completed }); await refresh(); }, 'complete')); $('tasks').append(row); });
+  $('mission').replaceChildren(...open.slice(0, 3).map(item => element('p', '◉ ' + item.content))); if (!open.length) $('mission').textContent = 'No pending mission. Add a task when you are ready.'; $('next-task').textContent = open[0]?.content || 'Your next task starts here';
+}
+function edit(type, item) { editing = { kind: type, item }; $('editor-title').textContent = (item ? 'Edit ' : 'Create ') + type.slice(0, -1); $('editor-content').value = item?.content || ''; $('editor-warning').textContent = type === 'memories' ? 'Save only facts you explicitly want Kane to remember. Do not enter secrets or sensitive personal information.' : ''; $('editor').showModal(); }
+$('editor-form').onsubmit = async event => { event.preventDefault(); const { kind: type, item } = editing; try { await api(`/api/${type}` + (item ? '/' + item.id : ''), item ? 'PATCH' : 'POST', { content: $('editor-content').value, completed: Boolean(item?.completed), confirmed: type === 'memories', source: 'user_confirmed_in_cockpit' }); $('editor').close(); await refresh(); } catch (error) { notify(error); } };
+$('editor-cancel').onclick = () => $('editor').close(); $('add-item').onclick = () => edit(kind); $('add-task').onclick = () => edit('tasks'); $('save-memory').onclick = () => edit('memories');
+document.querySelectorAll('[data-kind]').forEach(node => node.onclick = () => { kind = node.dataset.kind; workspace().catch(notify); });
+function detail(title, children) { $('detail-title').textContent = title; $('detail-body').replaceChildren(...children); $('detail').showModal(); }
+$('close-detail').onclick = () => $('detail').close();
+async function loadMarket() {
+  $('market-date').textContent = 'Loading…';
+  try { marketData = await api('/api/markets/forex?pair=' + encodeURIComponent($('pair').value)); $('market-price').textContent = marketData.latest.value.toFixed(5); $('market-date').textContent = 'As of ' + marketData.latest.date; lineChart($('market-chart'), marketData.points.map(point => point.value)); const start = marketData.points.at(-6)?.value || marketData.latest.value; $('market-change').textContent = ((marketData.latest.value / start - 1) * 100).toFixed(2) + '% over 5 observations'; $('forecast-mini').textContent = `5-observation baseline range: ${marketData.forecast.lower.toFixed(5)}–${marketData.forecast.upper.toFixed(5)}`; }
+  catch (error) { $('market-date').textContent = 'Data unavailable'; $('forecast-mini').textContent = error.message; }
+}
+function showForecast() {
+  if (!marketData) { notify(new Error('Market data is not available yet.')); return; }
+  const f = marketData.forecast, chart = element('canvas'); chart.width = 650; chart.height = 220;
+  const table = element('table');
+  const rows = [['Reference date', marketData.latest.date], ['Method', f.method], ['Horizon', f.horizonObservations + ' future published observations'], ['Central estimate', f.central.toFixed(5)], ['Scenario interval', f.lower.toFixed(5) + ' – ' + f.upper.toFixed(5)], ['Walk-forward tests', f.backtest.observations], ['Backtest mean absolute error', f.backtest.meanAbsolutePercentageError === null ? 'Unavailable' : (f.backtest.meanAbsolutePercentageError * 100).toFixed(2) + '%'], ['Observed interval coverage', f.backtest.empiricalIntervalCoverage === null ? 'Unavailable' : (f.backtest.empiricalIntervalCoverage * 100).toFixed(1) + '%']];
   rows.forEach(([name, value]) => { const row = element('tr'); row.append(element('td', name), element('td', String(value))); table.append(row); });
   const source = element('a', 'Data source: ECB via Frankfurter'); source.href = marketData.sourceUrl; source.target = '_blank'; source.rel = 'noopener noreferrer';
   detail(marketData.pair + ' · Forex Research', [chart, source, table, element('p', f.approximateInterval, 'fine'), element('p', f.warning, 'fine')]); lineChart(chart, marketData.points.map(point => point.value));
