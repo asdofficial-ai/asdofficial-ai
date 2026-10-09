@@ -53,7 +53,13 @@ jobs:
       - name: Run tests and assemble installable APK
         id: build
         working-directory: ultron-android
-        run: gradle --no-daemon testDebugUnitTest assembleDebug --stacktrace
+        run: |
+          set +e
+          gradle --no-daemon testDebugUnitTest assembleDebug --stacktrace > /tmp/ultron-build.log 2>&1
+          rc=$?
+          grep -E "^e:|^FAILURE:|^\* What went wrong|^Execution failed for task|^> " /tmp/ultron-build.log | tail -60 || true
+          tail -30 /tmp/ultron-build.log
+          exit $rc
       - uses: actions/upload-artifact@v4
         id: artifact
         with:
@@ -88,6 +94,11 @@ jobs:
         run: |
           set -euo pipefail
           msg="ULTRON CI: java=${JAVA_OUTCOME}; android=${ANDROID_OUTCOME}; sdk=${SDK_OUTCOME}; gradle=${GRADLE_OUTCOME}; model=${MODEL_OUTCOME}; build=${BUILD_OUTCOME}; artifact=${ARTIFACT_OUTCOME}; release=${RELEASE_OUTCOME}; commit=${GITHUB_SHA}"
+          if [ -f /tmp/ultron-build.log ]; then
+            msg="$msg
+COMPILER EXCERPT:
+$(grep -E '^e:|^FAILURE:|^\\* What went wrong|^Execution failed for task|^> ' /tmp/ultron-build.log | tail -n 22 || true)"
+          fi
           content="$(printf '%s\\n' "$msg" | base64 -w0)"
           current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt?ref=$GITHUB_REF_NAME" --jq '.sha' 2>/dev/null || true)"
           opts=()
