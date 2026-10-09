@@ -24,6 +24,7 @@ class VoiceService : Service(), RecognitionListener {
         const val START = "com.asd.ultron.START"
         const val STOP = "com.asd.ultron.STOP"
         const val CONNECT = "com.asd.ultron.CONNECT"
+        const val STATUS = "com.asd.ultron.STATUS"
         const val EVENT = "com.asd.ultron.STATE"
         const val EXTRA_CODE = "owner_code"
         const val EXTRA_STATE = "state"
@@ -49,6 +50,8 @@ class VoiceService : Service(), RecognitionListener {
     private var ready = false
     private var lastCommand = 0L
     private var retry = 0
+    private var latestState = "MICROPHONE OFF"
+    private var latestDetail = "Start ULTRON to enable offline wake monitoring."
 
     private val watchdog = object : Runnable {
         override fun run() {
@@ -80,6 +83,12 @@ class VoiceService : Service(), RecognitionListener {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             STOP -> { stopSelf(); return START_NOT_STICKY }
+            STATUS -> {
+                status(if (running) latestState else "MICROPHONE OFF",
+                    if (running) latestDetail else "Wake monitoring is not running.")
+                if (!running) stopSelf()
+                return START_NOT_STICKY
+            }
             CONNECT -> {
                 if (running) {
                     val code = intent.getStringExtra(EXTRA_CODE).orEmpty()
@@ -93,6 +102,9 @@ class VoiceService : Service(), RecognitionListener {
                             )
                         }
                     }
+                } else {
+                    status("MICROPHONE OFF", "Enable offline wake before owner pairing.")
+                    stopSelf()
                 }
                 return START_NOT_STICKY
             }
@@ -213,6 +225,7 @@ class VoiceService : Service(), RecognitionListener {
             WakePhrase.Kind.EMPTY -> return
             WakePhrase.Kind.WAKE -> {
                 awake = true;lastCommand = SystemClock.elapsedRealtime()
+                noteWakeDetection()
                 if (parsed.command.isBlank()) speak("I am online, sir. How may I assist you?")
                 else command(parsed.command)
             }
@@ -223,6 +236,13 @@ class VoiceService : Service(), RecognitionListener {
                 if (parsed.command.isNotBlank()) command(parsed.command)
             }
         }
+    }
+    /** Stores only wake event time/count, never transcripts or raw microphone audio. */
+    private fun noteWakeDetection() {
+        val prefs = getSharedPreferences("wake_diagnostics", MODE_PRIVATE)
+        val count = prefs.getInt("count", 0)
+        prefs.edit().putInt("count", if (count < Int.MAX_VALUE) count + 1 else count)
+            .putLong("last_wake_ms", System.currentTimeMillis()).apply()
     }
     private fun command(q: String) {
         val text = q.lowercase(Locale.US)
@@ -286,6 +306,8 @@ class VoiceService : Service(), RecognitionListener {
             .setOngoing(true).setCategory(Notification.CATEGORY_SERVICE).build()
     }
     private fun status(state: String, detail: String) {
+        latestState = state
+        latestDetail = detail
         sendBroadcast(Intent(EVENT).setPackage(packageName)
             .putExtra(EXTRA_STATE, state).putExtra(EXTRA_DETAIL, detail))
         if (running) try {
