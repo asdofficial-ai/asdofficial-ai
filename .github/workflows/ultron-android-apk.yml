@@ -15,17 +15,23 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        id: checkout
       - uses: actions/setup-java@v4
+        id: java
         with:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        id: android
       - name: Install Android SDK
+        id: sdk
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - uses: gradle/actions/setup-gradle@v4
+        id: gradle
         with:
           gradle-version: '8.10.2'
       - name: Download official offline Vosk model
+        id: model
         working-directory: ultron-android
         run: |
           set -euo pipefail
@@ -42,6 +48,7 @@ jobs:
         working-directory: ultron-android
         run: gradle --no-daemon testDebugUnitTest assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
+        id: artifact
         with:
           name: ULTRON-Android-v0.2-debug-apk
           path: ultron-android/app/build/outputs/apk/debug/app-debug.apk
@@ -65,9 +72,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           RELEASE_OUTCOME: ${{ steps.release.outcome }}
+          JAVA_OUTCOME: ${{ steps.java.outcome }}
+          ANDROID_OUTCOME: ${{ steps.android.outcome }}
+          SDK_OUTCOME: ${{ steps.sdk.outcome }}
+          GRADLE_OUTCOME: ${{ steps.gradle.outcome }}
+          MODEL_OUTCOME: ${{ steps.model.outcome }}
+          ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
         run: |
           set -euo pipefail
-          msg="ULTRON Android CI: build=${BUILD_OUTCOME}; release=${RELEASE_OUTCOME}; commit=${GITHUB_SHA}"
+          msg="ULTRON CI: java=${JAVA_OUTCOME}; android=${ANDROID_OUTCOME}; sdk=${SDK_OUTCOME}; gradle=${GRADLE_OUTCOME}; model=${MODEL_OUTCOME}; build=${BUILD_OUTCOME}; artifact=${ARTIFACT_OUTCOME}; release=${RELEASE_OUTCOME}; commit=${GITHUB_SHA}"
           content="$(printf '%s\\n' "$msg" | base64 -w0)"
           current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt?ref=$GITHUB_REF_NAME" --jq '.sha' 2>/dev/null || true)"
           opts=()
