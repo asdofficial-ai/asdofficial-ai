@@ -1,1 +1,1 @@
-ULTRON CI: java=success; android=failure; sdk=skipped; gradle=skipped; model=skipped; build=skipped; artifact=skipped; release=skipped; commit=0fac04d904a737485ca7788d208a8529c99768f0\n
+ULTRON CI: java=success; android=success; sdk=failure; gradle=skipped; model=skipped; build=skipped; artifact=skipped; release=skipped; commit=203965c31dee4f9b2cfc2d742eaf2f4d078fd4af\n
