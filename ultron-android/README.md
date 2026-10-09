@@ -2,6 +2,15 @@
 
 **Source:** `ultron-android` (Kotlin native app). **Build:** GitHub Actions `ULTRON Android APK` workflow. The workflow downloads and bundles the official [Vosk small English 0.15](https://alphacephei.com/vosk/models) offline speech recognition model and compiles a signed-by-Android-debug-tools installable APK. It never stores an API key or owner code in code.
 
+## Improvements in 0.2.1-alpha
+
+- The activity requests current service status when reopened, rather than assuming microphone monitoring stopped. This also allows owner pairing after returning from a locked screen.
+- The app displays a cumulative wake-detection count and the last recognized wake timestamp. These are **local diagnostic events only**; it does not store the spoken words or audio.
+- Added unit tests for nap, shutdown, and multiple wake-phrase variations.
+- To test: enable offline wake while the app is visible, lock the phone, say **"Hey Ultron"**, unlock it, and compare the wake-detection count. Then try responding by voice and check whether the foreground microphone notification remained present.
+- **APK update warning:** the GitHub runner signs debug builds with an ephemeral debug certificate. If Android reports a signing conflict when installing 0.2.1 over 0.2.0, uninstall the earlier experimental debug app before installing the new one. You may lose any local test configuration.
+- Even if the wake counter increases with the screen locked, reliable operation still requires repeated tests on the actual device under battery restrictions and different noise conditions. No code-only test can prove 24/7 compatibility.
+
 ## How to install / test
 1. Download the APK from the GitHub Actions run artifact or the generated **ULTRON Android 0.2 alpha** GitHub prerelease. This is a prototype debug APK; Android may warn about installing apps from outside Play Store. Install only if you trust the source. Back up before trying experimental software.
 2. Open ULTRON with the screen unlocked and grant microphone permission, plus notifications when asked.
