@@ -12,58 +12,47 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-        id: checkout
       - uses: actions/setup-java@v4
         id: java
         with:
           distribution: temurin
           java-version: '17'
-      - name: Check preinstalled Android SDK
-        id: android
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          test -d "$ANDROID_HOME"
-          command -v sdkmanager || test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-      - name: Check available Android SDK platforms
+      - name: Locate preinstalled Android SDK
         id: sdk
         run: |
-          echo "SDK platform directories:"
+          test -d "$ANDROID_HOME"
           ls "$ANDROID_HOME/platforms" || true
           ls "$ANDROID_HOME/build-tools" || true
       - uses: gradle/actions/setup-gradle@v4
         id: gradle
         with:
           gradle-version: '8.10.2'
-      - name: Download official offline Vosk model
+      - name: Bundle official Vosk offline model
         id: model
         working-directory: ultron-android
         run: |
           set -euo pipefail
           mkdir -p app/src/main/assets
-          curl --fail --location --retry 4 --retry-delay 5 --max-time 180 \
-            "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip" \
-            --output /tmp/ultron-model.zip
+          curl --fail --location --retry 3 --max-time 200 "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip" --output /tmp/ultron-model.zip
           unzip -q /tmp/ultron-model.zip -d app/src/main/assets
           test -s app/src/main/assets/vosk-model-small-en-us-0.15/am/final.mdl
           mv app/src/main/assets/vosk-model-small-en-us-0.15 app/src/main/assets/vosk-en-us-small-015
-          echo "Bundled English offline model"
-      - name: Run tests and assemble installable APK
+      - name: Compile installable debug APK and tests
         id: build
         working-directory: ultron-android
         run: |
           set +e
           gradle --no-daemon testDebugUnitTest assembleDebug --stacktrace > /tmp/ultron-build.log 2>&1
-          rc=$?
-          grep -E "^e:|^FAILURE:|^\* What went wrong|^Execution failed for task|^> " /tmp/ultron-build.log | tail -60 || true
-          tail -30 /tmp/ultron-build.log
-          exit $rc
+          result=$?
+          tail -n 70 /tmp/ultron-build.log
+          exit "$result"
       - uses: actions/upload-artifact@v4
         id: artifact
         with:
-          name: ULTRON-Android-v0.2-debug-apk
+          name: ULTRON-Android-v0.2-apk
           path: ultron-android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
       - name: Publish public prerelease APK
@@ -72,53 +61,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "ultron-android-v0.2.0-alpha.1" \
-            "ultron-android/app/build/outputs/apk/debug/app-debug.apk#ULTRON-Android-Voice-Wake-v0.2-debug.apk" \
-            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "ULTRON Android 0.2 alpha — offline wake APK" \
-            --notes "User-enabled offline Vosk microphone foreground service. Intended lock-screen wake recognition when Android permits. Experimental debug APK; not audited, not guaranteed on all devices." \
-            --prerelease
-
-      - name: Write build result to separate status file
+          gh release create "ultron-android-v0.2.0-alpha.1" "ultron-android/app/build/outputs/apk/debug/app-debug.apk#ULTRON-Android-Voice-Wake-v0.2-debug.apk" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "ULTRON Android 0.2 alpha offline wake APK" --notes "Experimental offline foreground microphone wake prototype; device testing is necessary." --prerelease
+      - name: Record verification result
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          BUILD_OUTCOME: ${{ steps.build.outcome }}
-          RELEASE_OUTCOME: ${{ steps.release.outcome }}
-          JAVA_OUTCOME: ${{ steps.java.outcome }}
-          ANDROID_OUTCOME: ${{ steps.android.outcome }}
-          SDK_OUTCOME: ${{ steps.sdk.outcome }}
-          GRADLE_OUTCOME: ${{ steps.gradle.outcome }}
-          MODEL_OUTCOME: ${{ steps.model.outcome }}
-          ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
+          JAVA: ${{ steps.java.outcome }}
+          SDK: ${{ steps.sdk.outcome }}
+          GRADLE: ${{ steps.gradle.outcome }}
+          MODEL: ${{ steps.model.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          ARTIFACT: ${{ steps.artifact.outcome }}
+          RELEASE: ${{ steps.release.outcome }}
         run: |
           set -euo pipefail
-          msg="ULTRON CI: java=${JAVA_OUTCOME}; android=${ANDROID_OUTCOME}; sdk=${SDK_OUTCOME}; gradle=${GRADLE_OUTCOME}; model=${MODEL_OUTCOME}; build=${BUILD_OUTCOME}; artifact=${ARTIFACT_OUTCOME}; release=${RELEASE_OUTCOME}; commit=${GITHUB_SHA}"
-          if [ -f /tmp/ultron-build.log ]; then
-            msg="$msg"
+          msg="ULTRON CI: java=$JAVA sdk=$SDK gradle=$GRADLE model=$MODEL build=$BUILD artifact=$ARTIFACT release=$RELEASE commit=$GITHUB_SHA"
+          if [ -f /tmp/ultron-build.log ]; then msg="$msg ERRORS: $(grep -E '^e:|^FAILURE:|^> |^\* What went wrong' /tmp/ultron-build.log | tail -n 18 | tr '\n' ' ' || true)"; fi
+          encoded="$(printf '%s' "$msg" | base64 -w0)"
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt?ref=$GITHUB_REF_NAME" --jq '.sha' 2>/dev/null || true)"
+          if [ -n "$sha" ]; then
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt" -f "message=ULTRON APK CI status" -f "branch=$GITHUB_REF_NAME" -f "sha=$sha" -f "content=$encoded"
+          else
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt" -f "message=ULTRON APK CI status" -f "branch=$GITHUB_REF_NAME" -f "content=$encoded"
           fi
-          content="$(printf '%s\\n' "$msg" | base64 -w0)"
-          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt?ref=$GITHUB_REF_NAME" --jq '.sha' 2>/dev/null || true)"
-          opts=()
-          if [ -n "$current_sha" ]; then opts+=(-f "sha=$current_sha"); fi
-          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt" \
-            -f "message=Record ULTRON Android APK workflow status" \
-            -f "content=$content" -f "branch=$GITHUB_REF_NAME" "${opts[@]}"
-\\n'"COMPILER EXCERPT:"
-          fi
-          content="$(printf '%s\\n' "$msg" | base64 -w0)"
-          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt?ref=$GITHUB_REF_NAME" --jq '.sha' 2>/dev/null || true)"
-          opts=()
-          if [ -n "$current_sha" ]; then opts+=(-f "sha=$current_sha"); fi
-          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt" \
-            -f "message=Record ULTRON Android APK workflow status" \
-            -f "content=$content" -f "branch=$GITHUB_REF_NAME" "${opts[@]}"
-\\n'"$(grep -E '^e:|^FAILURE:|^\\* What went wrong|^Execution failed for task|^> ' /tmp/ultron-build.log | tail -n 22 || true)"
-          fi
-          content="$(printf '%s\\n' "$msg" | base64 -w0)"
-          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt?ref=$GITHUB_REF_NAME" --jq '.sha' 2>/dev/null || true)"
-          opts=()
-          if [ -n "$current_sha" ]; then opts+=(-f "sha=$current_sha"); fi
-          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt" \
-            -f "message=Record ULTRON Android APK workflow status" \
-            -f "content=$content" -f "branch=$GITHUB_REF_NAME" "${opts[@]}"
