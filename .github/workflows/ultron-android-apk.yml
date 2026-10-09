@@ -38,6 +38,7 @@ jobs:
           mv app/src/main/assets/vosk-model-small-en-us-0.15 app/src/main/assets/vosk-en-us-small-015
           echo "Bundled English offline model"
       - name: Run tests and assemble installable APK
+        id: build
         working-directory: ultron-android
         run: gradle --no-daemon testDebugUnitTest assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
@@ -46,6 +47,7 @@ jobs:
           path: ultron-android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
       - name: Publish public prerelease APK
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -56,3 +58,20 @@ jobs:
             --title "ULTRON Android 0.2 alpha — offline wake APK" \
             --notes "User-enabled offline Vosk microphone foreground service. Intended lock-screen wake recognition when Android permits. Experimental debug APK; not audited, not guaranteed on all devices." \
             --prerelease
+
+      - name: Write build result to separate status file
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+        run: |
+          set -euo pipefail
+          msg="ULTRON Android CI: build=${BUILD_OUTCOME}; release=${RELEASE_OUTCOME}; commit=${GITHUB_SHA}"
+          content="$(printf '%s\\n' "$msg" | base64 -w0)"
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt?ref=$GITHUB_REF_NAME" --jq '.sha' 2>/dev/null || true)"
+          opts=()
+          if [ -n "$current_sha" ]; then opts+=(-f "sha=$current_sha"); fi
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt" \
+            -f "message=Record ULTRON Android APK workflow status" \
+            -f "content=$content" -f "branch=$GITHUB_REF_NAME" "${opts[@]}"
