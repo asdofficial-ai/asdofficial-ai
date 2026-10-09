@@ -14,6 +14,8 @@ import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
 import android.widget.*
+import java.text.DateFormat
+import java.util.Date
 
 /** No text messaging: only microphone activation and optional owner access code. */
 class MainActivity : Activity() {
@@ -23,6 +25,7 @@ class MainActivity : Activity() {
     private val silver = Color.rgb(182,168,173)
     private lateinit var state: TextView
     private lateinit var detail: TextView
+    private lateinit var wakeCheck: TextView
     private lateinit var access: EditText
     private val permissionCode = 1822
     private var isListening = false
@@ -31,8 +34,10 @@ class MainActivity : Activity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             state.text = intent?.getStringExtra(VoiceService.EXTRA_STATE) ?: "READY"
             detail.text = intent?.getStringExtra(VoiceService.EXTRA_DETAIL) ?: ""
-            if (state.text.toString().contains("OFF") || state.text.toString().contains("BLOCKED"))
-                isListening = false
+            isListening = !state.text.toString().contains("OFF") &&
+                !state.text.toString().contains("BLOCKED") &&
+                !state.text.toString().contains("DENIED")
+            refreshWakeCheck()
         }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +60,8 @@ class MainActivity : Activity() {
         add(root,state,-2,32)
         detail = label("Enable microphone once; test your wake word with the screen locked.",13f,silver,false)
         add(root,detail,-2,10)
+        wakeCheck = label("LOCK TEST: NO WAKE DETECTED YET", 12f, red, true)
+        add(root,wakeCheck,-2,15)
         add(root,button("🎙  ENABLE OFFLINE WAKE", red) { startMicrophone() },58,26)
         add(root,button("■  STOP MICROPHONE", Color.rgb(75,28,38)) {
             stopService(Intent(this,VoiceService::class.java))
@@ -81,9 +88,7 @@ class MainActivity : Activity() {
         add(root,access,52,7)
         add(root,button("CONNECT TO ULTRON AI",Color.rgb(112,31,47)) {
             val code=access.text.toString();access.text.clear()
-            if(!isListening) {
-                Toast.makeText(this,"Start the microphone before pairing.",Toast.LENGTH_LONG).show()
-            } else if(code.isBlank()) {
+            if(code.isBlank()) {
                 Toast.makeText(this,"Enter your owner access code.",Toast.LENGTH_LONG).show()
             } else {
                 val intent=Intent(this,VoiceService::class.java).setAction(VoiceService.CONNECT)
@@ -97,6 +102,15 @@ class MainActivity : Activity() {
                 Uri.parse("package:$packageName")))
         },50,20)
         add(root,label("IMPORTANT: Start ULTRON while this app is visible. A foreground microphone notification remains active when locked. Android may still suspend it to save battery. This build does not automatically start recording after reboot. The offline model occupies significant storage and first launch takes time. Turn off battery optimization for ULTRON manually if your phone keeps stopping the service.",11f,silver,false),-2,20)
+    }
+    private fun refreshWakeCheck() {
+        if (!::wakeCheck.isInitialized) return
+        val prefs = getSharedPreferences("wake_diagnostics", MODE_PRIVATE)
+        val count = prefs.getInt("count", 0)
+        val last = prefs.getLong("last_wake_ms", 0L)
+        wakeCheck.text = if (count == 0 || last == 0L) "LOCK TEST: NO WAKE DETECTED YET"
+            else "WAKE DETECTED: $count TIMES · LAST " +
+                DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(last))
     }
     private fun dp(px:Int)=(resources.displayMetrics.density*px).toInt()
     private fun label(value:String,size:Float,color:Int,bold:Boolean): TextView = TextView(this).apply{
@@ -118,6 +132,10 @@ class MainActivity : Activity() {
         val filter=IntentFilter(VoiceService.EVENT)
         if(Build.VERSION.SDK_INT>=33) registerReceiver(receiver,filter,RECEIVER_NOT_EXPORTED)
         else @Suppress("DEPRECATION") registerReceiver(receiver,filter)
+        refreshWakeCheck()
+        // Query the running service. A recreated Activity must not incorrectly claim the microphone is off.
+        try { startService(Intent(this, VoiceService::class.java).setAction(VoiceService.STATUS)) }
+        catch (_: Exception) { /* The status controls remain usable if the OS blocks this request. */ }
     }
     override fun onStop() {
         try { unregisterReceiver(receiver) } catch (_:Exception) {}
