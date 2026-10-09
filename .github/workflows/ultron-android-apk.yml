@@ -52,7 +52,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         id: artifact
         with:
-          name: ULTRON-Android-v0.2-apk
+          name: ULTRON-Android-v0.2.1-apk
           path: ultron-android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
       - name: Publish public prerelease APK
@@ -61,7 +61,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "ultron-android-v0.2.0-alpha.1" "ultron-android/app/build/outputs/apk/debug/app-debug.apk#ULTRON-Android-Voice-Wake-v0.2-debug.apk" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "ULTRON Android 0.2 alpha offline wake APK" --notes "Experimental offline foreground microphone wake prototype; device testing is necessary." --prerelease
+          gh release create "ultron-android-v0.2.1-alpha.2" "ultron-android/app/build/outputs/apk/debug/app-debug.apk#ULTRON-Android-Voice-Wake-v0.2.1-debug.apk" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "ULTRON Android 0.2.1 alpha — wake diagnostics and owner reconnect" --notes "Experimental debug APK. Offline wake detection, owner reconnect, and local wake event count. Locked-screen reliability requires physical testing. May require uninstalling the previous debug APK because signing certificates can differ." --prerelease
       - name: Record verification result
         if: always()
         env:
