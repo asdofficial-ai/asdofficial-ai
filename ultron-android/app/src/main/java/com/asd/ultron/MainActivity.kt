@@ -39,7 +39,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = bg
         window.navigationBarColor = bg
-        val scroll = ScrollView(this).apply { setBackgroundColor(bg);fillViewport=true }
+        val scroll = ScrollView(this).apply { setBackgroundColor(bg);isFillViewport=true }
         val root = LinearLayout(this).apply {
             orientation=LinearLayout.VERTICAL
             setPadding(dp(24),dp(36),dp(24),dp(32))
