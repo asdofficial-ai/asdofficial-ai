@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#090a0c">
+<title>ULTRON — Live HTTPS Voice Wake Prototype V5</title>
+<style>
+:root{--bg:#08090b;--panel:#101115;--line:#30262a;--red:#f04a53;--red2:#a82532;--white:#f4efed;--muted:#9c9899}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--white);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif}body{background:radial-gradient(ellipse 56% 32% at 50% 31%,#5e16202c,transparent 76%),var(--bg)}button{font:inherit;cursor:pointer}.shell{max-width:920px;min-height:100svh;margin:auto;padding:23px 22px 35px;display:flex;flex-direction:column}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.logo{display:flex;align-items:center;gap:11px}.emblem{width:43px;height:43px;display:grid;place-items:center;border:1px solid #85303a;color:#fff;font-size:25px;font-weight:900;letter-spacing:-3px}.emblem i{color:var(--red);font-style:normal}.eyebrow{color:#af8e93;font:600 9px ui-monospace,monospace;letter-spacing:2px}.name{font-size:23px;font-weight:850;letter-spacing:3px;line-height:1.25}.name b{color:var(--red);font-size:11px;letter-spacing:2px}.tag{font:700 10px ui-monospace,monospace;letter-spacing:1.1px;color:#ffc4c9;border:1px solid #6e2932;background:#32131b8c;padding:10px 12px;white-space:nowrap}.line{height:1px;background:linear-gradient(90deg,transparent,#513039,transparent);margin:20px 0 0}.center{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px 0 22px}.kicker{font:600 11px ui-monospace,monospace;letter-spacing:3.2px;color:#d49aa1;margin-bottom:12px}.orb-wrap{height:min(58vw,315px);width:min(58vw,315px);min-height:218px;min-width:218px;display:grid;place-items:center;position:relative;margin:6px auto 17px}.ring{position:absolute;inset:6%;border:1px solid #a63243a1;border-radius:50%;box-shadow:0 0 18px #b42b3b2c}.ring.r2{inset:14%;border-color:#622730;border-style:dashed;transform:rotate(27deg)}.ring.r3{inset:0;border-color:#dd394a77;border-width:2px;border-left-color:transparent;border-right-color:transparent;transform:rotate(-25deg)}.ring.r4{inset:23%;border-color:#c43a4c66}.orb{width:45%;height:45%;background:radial-gradient(circle at 50% 43%,#711c2e9c,#1d0e15 70%);border-radius:50%;display:grid;place-items:center;box-shadow:0 0 50px #cb344436, inset 0 0 45px #e24a5528;z-index:1}.orb span{font-size:clamp(80px,15vw,105px);line-height:1;font-weight:900;text-shadow:0 0 33px #ff53678a}.orb-wrap.listening .ring,.orb-wrap.speaking .ring{animation:pulse 1.7s ease-in-out infinite}.orb-wrap.listening .r3{animation:spin 5s linear infinite}.orb-wrap.speaking .r3{animation:spin 7s linear infinite}.orb-wrap.listening .orb{box-shadow:0 0 82px #ed435c86,inset 0 0 35px #ef495452}.orb-wrap.speaking .orb{box-shadow:0 0 62px #cc3c66a9,inset 0 0 35px #ef495452}@keyframes pulse{50%{opacity:.4;transform:scale(1.04)}}@keyframes spin{to{transform:rotate(335deg)}}h1{font-size:clamp(25px,5.8vw,39px);line-height:1.12;font-weight:850;letter-spacing:1.5px;margin:8px 0 10px}h1 em{font-style:normal;color:var(--red)}.sub{color:#999094;font-size:14px;line-height:1.65;max-width:480px;margin:0 auto 22px}.status{font:700 11px ui-monospace,monospace;letter-spacing:2px;color:#f6b4bf;margin:10px 0 7px;min-height:15px}.hint{color:var(--muted);font-size:12px;line-height:1.5;max-width:450px;min-height:39px}.actions{display:flex;flex-direction:column;gap:12px;width:min(100%,390px);margin:20px auto 0}.main-btn{width:100%;background:linear-gradient(130deg,#bf333f,#e64b51);border:1px solid #fb7681;color:#fff;padding:19px 17px;letter-spacing:1.8px;font-weight:850;font-size:13px;box-shadow:0 8px 33px #cb2c3b45}.main-btn:active{transform:scale(.985)}.main-btn.stop{background:#24161a;border-color:#a54451;color:#f5b8c0}.main-btn:disabled{opacity:.55;cursor:not-allowed}.under{border:1px solid #403036;color:#a89a9e;background:#161014;padding:11px 15px;font-size:12px;letter-spacing:1.1px}.under:disabled{opacity:.42}.bottom{border-top:1px solid #33282d;padding-top:20px}.meta{display:flex;justify-content:space-between;gap:10px;color:#bbacb0;font:650 10px ui-monospace,monospace;letter-spacing:1.2px}.dot{display:inline-block;width:7px;height:7px;background:#b83b4a;border-radius:50%;margin-right:7px;box-shadow:0 0 11px #f44f56}.commands{background:#101015;border:1px solid #282329;padding:16px 17px;margin:16px 0 0}.commands-title{font:650 10px ui-monospace,monospace;letter-spacing:2px;color:#bc9a9e;margin-bottom:12px}.examples{display:flex;gap:8px;flex-wrap:wrap}.example{border:1px solid #482a32;background:#22191d;padding:9px 10px;color:#e6cdd0;font-size:11px;letter-spacing:.15px}.notice{font-size:11px;line-height:1.55;color:#93898c;margin:14px 0 0}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}@media(max-width:460px){.shell{padding:17px 19px 29px}.top .tag{font-size:9px;padding:8px}.center{padding:14px 0}.orb-wrap{margin:0 auto 8px}.sub{font-size:12px;margin-bottom:9px}.main-btn{padding:17px 12px}.bottom{padding-top:16px}.commands{padding:13px}.example{font-size:10px}.meta{font-size:9px}}
+.mic-warning{width:min(100%,440px);display:none;margin:14px auto 0;padding:13px;border:1px solid #8f4650;background:#35181dcc;text-align:left;color:#f5c2c9;font-size:12px;line-height:1.55}.mic-warning.show{display:block}.notice code{background:#20171b;border:1px solid #49313a;padding:1px 4px}.sub strong{color:#e6bec4}</style>
+</head><body><div class="shell"><header class="top"><div class="logo"><div class="emblem">U<i>.</i></div><div><div class="eyebrow">PERSONAL INTELLIGENCE / 005</div><div class="name">ULTRON <b>AI</b></div></div></div><div class="tag">VOICE ONLY</div></header><div class="line"></div>
+<main class="center"><div class="kicker">YOUR VOICE IS THE INTERFACE</div><div class="orb-wrap" id="orb"><div class="ring r3"></div><div class="ring r2"></div><div class="ring r1"></div><div class="ring r4"></div><div class="orb"><span>U</span></div></div><h1>INTELLIGENCE, <em>UNLOCKED.</em></h1><p class="sub">Voice only. Activate listening once, then say <strong>“Hey Ultron”</strong> or <strong>“Ultron, wake up.”</strong> Scripted demo responses. The microphone stays armed during nap mode while this page is open.</p><div class="status" id="state" role="status" aria-live="polite">MICROPHONE NOT STARTED</div><div class="hint" id="hint">Tap ENABLE MICROPHONE, allow access, then say your wake phrase.</div><div class="mic-warning" id="micWarning" role="alert"></div><div class="actions"><button class="main-btn" id="startBtn">🎙 &nbsp; ENABLE MICROPHONE</button><button class="under" id="repeatBtn" disabled>🔊 &nbsp; REPEAT LAST RESPONSE</button></div></main>
+<footer class="bottom"><div class="meta"><span><i class="dot"></i>CORE: SIMULATED</span><span>INPUT: MICROPHONE</span><span>OUTPUT: SPEECH</span></div><div class="commands"><div class="commands-title">TRY SAYING</div><div class="examples"><span class="example">“Hey Ultron”</span><span class="example">“Ultron, wake up”</span><span class="example">“What's the time?”</span><span class="example">“Remember that I love robotics”</span><span class="example">“What do you remember?”</span><span class="example">“Ultron, take a nap”</span><span class="example">“Ultron, go to sleep”</span><span class="example">“Ultron, end session”</span></div></div><p class="notice"><strong>Browser limitation:</strong> You must tap ENABLE MICROPHONE once and grant permission. During sleep/nap mode this page keeps listening for the wake phrase only while Chrome stays visible and the screen is active. This is not system-wide background listening. Downloaded HTML files opened as <code>content://</code> or <code>file://</code> may not receive microphone permission in Chrome. Publish this page over HTTPS first. This demo only listens while its tab is in the foreground and is not a real AI service.</p></footer></div>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+const orb=$('orb'),state=$('state'),hint=$('hint'),start=$('startBtn'),repeat=$('repeatBtn'),warn=$('micWarning');
+let session=false,awake=false,recognition=null,recognizing=false,speaking=false,processing=false;
+let lastReply='',retryTimer=0,inactivityTimer=0,backoff=0,pendingClear=false,memory=[];
+try{let raw=JSON.parse(localStorage.getItem('ultron_voice_mem_v4')||'[]');if(Array.isArray(raw))memory=raw.filter(x=>typeof x==='string').slice(-15);}catch{}
+const save=()=>{try{localStorage.setItem('ultron_voice_mem_v4',JSON.stringify(memory));}catch{}};
+const setStatus=(title,subtitle,mode='')=>{state.textContent=title.toUpperCase();hint.textContent=subtitle;orb.className='orb-wrap'+(mode?' '+mode:'');};
+const showProblem=text=>{warn.textContent=text;warn.classList.add('show');};
+const clearProblem=()=>{warn.textContent='';warn.classList.remove('show');};
+const localOpen=['file:','content:'].includes(location.protocol);
+if(localOpen || !window.isSecureContext){showProblem('Chrome opened this HTML from a download or an insecure address. Microphone permission may be unavailable. To use voice, publish the included index.html on an HTTPS website and open that link in Chrome.');}
+function stopSession(){session=false;awake=false;processing=false;clearTimeout(inactivityTimer);clearTimeout(retryTimer);try{recognition?.abort();}catch{}recognizing=false;try{speechSynthesis.cancel();}catch{}speaking=false;start.textContent='🎙   ENABLE MICROPHONE';start.classList.remove('stop');setStatus('microphone off','Tap ENABLE MICROPHONE to start again.');}
+function pauseMic(){clearTimeout(retryTimer);if(recognizing){try{recognition?.abort();}catch{}recognizing=false;}}
+function queueListen(delay=500){clearTimeout(retryTimer);if(session&&!speaking&&!processing)retryTimer=setTimeout(listen,delay);}
+function armAutoNap(){clearTimeout(inactivityTimer);if(session&&awake){inactivityTimer=setTimeout(()=>{if(session&&awake&&!speaking){awake=false;setStatus('nap mode · wake word armed','Still listening for “Ultron, wake up”.','listening');}},150000);}}
+function replyTo(text){const t=text.toLowerCase().replace(/\bultron\b/g,'').trim();
+ if(/^(go to sleep|take a nap|nap|go dormant|dormant mode|sleep|stand by|standby|rest|good night|goodnight)/.test(t))return {text:'Entering standby. Say Hey Ultron when you need me.',sleep:true};
+ if(/^(end session|stop listening|turn off microphone|shutdown|shut down|power off)/.test(t))return {text:'Microphone session ended.',end:true};
+ if(/^(confirm clear memory|confirm forget everything)/.test(t)&&pendingClear){pendingClear=false;memory=[];save();return{text:'The demo memory is now empty.'};}
+ if(/forget everything|clear (all )?(my )?memor/.test(t)){pendingClear=true;return{text:'Say confirm clear memory to erase the demo memories.'};}
+ if(/what do you remember|my memor(y|ies)|what did you remember/.test(t))return{text:memory.length?'I remember: '+memory.slice(-3).join('. ')+'.':'I have no saved demo memories yet.'};
+ if(/^remember\b/.test(t)){const fact=t.replace(/^remember(?: that| this)?\s*/,'').trim();if(fact.length<3)return{text:'What would you like me to remember?'};memory.push(fact.slice(0,240));memory=memory.slice(-15);save();return{text:'Saved in this browser’s demonstration memory.'};}
+ if(/time|clock/.test(t))return{text:'Your device time is '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'.'};
+ if(/date|today/.test(t))return{text:'Today is '+new Date().toLocaleDateString([], {weekday:'long',month:'long',day:'numeric',year:'numeric'})+'.'};
+ if(/hello|hi|hey|are you there/.test(t))return{text:'I am here, sir.'};
+ if(/status|capabilit|what can you do/.test(t))return{text:'I can hear your wake command, speak basic scripted responses and store demo memories. I do not yet have a live artificial intelligence model or connected devices.'};
+ if(/light|device|computer|turn on|turn off|unlock/.test(t))return{text:'No hardware is connected yet. I cannot control that device.'};
+ if(/see|look|camera|image|photo|vision/.test(t))return{text:'Camera vision is not enabled in this prototype.'};
+ if(/thank/.test(t))return{text:'You are welcome, sir.'};
+ return{text:'I heard your command. This is a scripted voice-only prototype. A real AI server is required for an intelligent response.'};
+}
+function say(text, options={}){
+ lastReply=text;repeat.disabled=false;pauseMic();speaking=true;
+ setStatus('speaking','ULTRON is responding.','speaking');
+ const finished=()=>{if(!speaking)return;speaking=false;if(options.end){stopSession();return;}if(options.sleep){awake=false;clearTimeout(inactivityTimer);setStatus('nap mode · wake word armed','Say “Hey Ultron” or “Ultron, wake up”.');}queueListen(500);};
+ if(!('speechSynthesis' in window)){setStatus('speech output unavailable','Your browser cannot speak this response.');finished();return;}
+ try{
+  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='en-US';u.rate=.97;u.pitch=.82;u.volume=1;
+  const voices=speechSynthesis.getVoices();u.voice=voices.find(v=>/^en/i.test(v.lang)&&/male|daniel|david|george|mark/i.test(v.name))||voices.find(v=>/^en/i.test(v.lang))||null;
+  u.onend=finished;u.onerror=finished;speechSynthesis.speak(u);
+  // Safety fallback for browsers that silently drop TTS events.
+  setTimeout(()=>{if(speaking && !speechSynthesis.speaking && !speechSynthesis.pending)finished();},1400);
+ }catch(e){finished();}
+}
+function heard(raw){
+ const phrase=raw.toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+ const match=phrase.match(/\b(?:hey\s+ultron|hello\s+ultron|ultron\s+wake\s+up|wake\s+up\s+ultron)\b/);
+ if(!awake){
+  if(!match){setStatus('standby · wake word armed','Listening for “Hey Ultron” or “Ultron, wake up”.','listening');queueListen(200);return;}
+  awake=true;armAutoNap();const command=phrase.slice(match.index+match[0].length).trim();
+  if(!command){say('I am online, sir. How may I assist you?');return;}
+  const result=replyTo(command);say(result.text,result);return;
+ }
+ armAutoNap();const result=replyTo(phrase);say(result.text,result);
+}
+function listen(){
+ if(!session||recognizing||speaking||processing)return;
+ if(!Recognition){stopSession();setStatus('recognition unsupported','Chrome does not expose speech recognition on this page.');return;}
+ try{
+  let r=new Recognition();recognition=r;r.lang='en-US';r.continuous=false;r.interimResults=false;r.maxAlternatives=1;
+  let gotSpeech=false,finished=false;
+  r.onstart=()=>{if(!session)return;recognizing=true;backoff=0;setStatus(awake?'listening · command mode':'standby · wake word armed',awake?'Speak your command.':'Say “Hey Ultron” or “Ultron, wake up”.','listening');};
+  r.onresult=e=>{gotSpeech=true;processing=true;const heardText=Array.from(e.results).map(x=>x[0]?.transcript||'').join(' ').trim();recognizing=false;try{r.stop();}catch{}processing=false;if(session&&heardText)heard(heardText);else queueListen(400);};
+  r.onerror=e=>{
+    const err=e.error||'unknown';recognizing=false;
+    if(['not-allowed','service-not-allowed','audio-capture'].includes(err)){
+      stopSession();showProblem('Microphone blocked: Android Settings → Apps → Chrome → Permissions → Microphone → Allow. Also check Chrome Settings → Site settings → Microphone and the phone’s global Microphone access switch. If using a downloaded HTML file, open an HTTPS version instead.');setStatus('microphone blocked','Chrome could not access the microphone.');return;
+    }
+    if(err==='network'){stopSession();showProblem('Speech recognition could not contact its service. Verify your internet connection and try the HTTPS-hosted version.');setStatus('speech service unavailable','Speech-to-text requires a working browser service.');return;}
+    if(err==='aborted')return;
+    setStatus('microphone retry','Speech recognition ended: '+err+'. Retrying…');
+  };
+  r.onend=()=>{recognizing=false;if(!session||processing||speaking||finished)return;finished=true;if(!gotSpeech){backoff=Math.min(backoff+1,5);queueListen(400+backoff*250);}};
+  r.start();
+ }catch(e){stopSession();showProblem('Speech recognition could not start. If this page is a downloaded file, publish it on an HTTPS site and reopen in Chrome.');setStatus('speech could not start','Check microphone permission and HTTPS.');}
+}
+async function startSession(){
+ if(session){stopSession();return;}
+ clearProblem();
+ if(!Recognition){showProblem('Speech recognition is unavailable in this browser. Try an updated version of Chrome for Android.');return;}
+ if(!navigator.mediaDevices?.getUserMedia){showProblem('The microphone API is unavailable here. This often happens with content:// downloads or non-HTTPS origins. Use an HTTPS URL, then allow microphone permission.');return;}
+ start.disabled=true;setStatus('requesting microphone permission','Chrome should display a microphone permission request.');
+ try{
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());
+  session=true;awake=false;backoff=0;start.textContent='■   DISABLE MICROPHONE';start.classList.add('stop');
+  setStatus('standby · wake word armed','Say “Hey Ultron” or “Ultron, wake up”.');queueListen(200);
+ }catch(e){
+  const denied=['NotAllowedError','PermissionDeniedError','SecurityError'].includes(e.name);
+  const details=denied?'Chrome has not granted microphone access. Go to Android Settings → Apps → Chrome → Permissions → Microphone → Allow, and Chrome Settings → Site settings → Microphone. A downloaded HTML file may still be blocked; use an HTTPS URL.':'Microphone initialization failed: '+e.name+'. Check the Android microphone privacy switch and whether another app is using your microphone.';
+  showProblem(details);setStatus('microphone unavailable','Review the permission steps shown above.');
+ }finally{start.disabled=false;}
+}
+start.addEventListener('click',startSession);
+repeat.addEventListener('click',()=>{if(lastReply) say(lastReply);});
+document.addEventListener('visibilitychange',()=>{if(document.hidden && session){stopSession();setStatus('paused in background','Chrome cannot keep the demo listening when this tab is hidden.');}});
+})();
+</script></body></html>
