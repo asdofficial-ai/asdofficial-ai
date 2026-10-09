@@ -27,13 +27,12 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           test -d "$ANDROID_HOME"
           command -v sdkmanager || test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-      - name: Install Android SDK
+      - name: Check available Android SDK platforms
         id: sdk
         run: |
-          SDKMANAGER="$(command -v sdkmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager")"
-          echo "Using $SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+          echo "SDK platform directories:"
+          ls "$ANDROID_HOME/platforms" || true
+          ls "$ANDROID_HOME/build-tools" || true
       - uses: gradle/actions/setup-gradle@v4
         id: gradle
         with:
