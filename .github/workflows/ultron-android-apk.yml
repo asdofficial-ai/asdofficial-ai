@@ -95,9 +95,25 @@ jobs:
           set -euo pipefail
           msg="ULTRON CI: java=${JAVA_OUTCOME}; android=${ANDROID_OUTCOME}; sdk=${SDK_OUTCOME}; gradle=${GRADLE_OUTCOME}; model=${MODEL_OUTCOME}; build=${BUILD_OUTCOME}; artifact=${ARTIFACT_OUTCOME}; release=${RELEASE_OUTCOME}; commit=${GITHUB_SHA}"
           if [ -f /tmp/ultron-build.log ]; then
-            msg="$msg
-COMPILER EXCERPT:
-$(grep -E '^e:|^FAILURE:|^\\* What went wrong|^Execution failed for task|^> ' /tmp/ultron-build.log | tail -n 22 || true)"
+            msg="$msg"
+          fi
+          content="$(printf '%s\\n' "$msg" | base64 -w0)"
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt?ref=$GITHUB_REF_NAME" --jq '.sha' 2>/dev/null || true)"
+          opts=()
+          if [ -n "$current_sha" ]; then opts+=(-f "sha=$current_sha"); fi
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt" \
+            -f "message=Record ULTRON Android APK workflow status" \
+            -f "content=$content" -f "branch=$GITHUB_REF_NAME" "${opts[@]}"
+\\n'"COMPILER EXCERPT:"
+          fi
+          content="$(printf '%s\\n' "$msg" | base64 -w0)"
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt?ref=$GITHUB_REF_NAME" --jq '.sha' 2>/dev/null || true)"
+          opts=()
+          if [ -n "$current_sha" ]; then opts+=(-f "sha=$current_sha"); fi
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt" \
+            -f "message=Record ULTRON Android APK workflow status" \
+            -f "content=$content" -f "branch=$GITHUB_REF_NAME" "${opts[@]}"
+\\n'"$(grep -E '^e:|^FAILURE:|^\\* What went wrong|^Execution failed for task|^> ' /tmp/ultron-build.log | tail -n 22 || true)"
           fi
           content="$(printf '%s\\n' "$msg" | base64 -w0)"
           current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/build-status/ultron-android-ci.txt?ref=$GITHUB_REF_NAME" --jq '.sha' 2>/dev/null || true)"
