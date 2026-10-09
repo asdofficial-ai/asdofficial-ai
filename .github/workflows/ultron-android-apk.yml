@@ -1,0 +1,58 @@
+name: ULTRON Android APK
+on:
+  push:
+    branches:
+      - feature/ultron-android-lockwake-20261009
+    paths:
+      - 'ultron-android/**'
+      - '.github/workflows/ultron-android-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Download official offline Vosk model
+        working-directory: ultron-android
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets
+          curl --fail --location --retry 4 --retry-delay 5 --max-time 180 \
+            "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip" \
+            --output /tmp/ultron-model.zip
+          unzip -q /tmp/ultron-model.zip -d app/src/main/assets
+          test -s app/src/main/assets/vosk-model-small-en-us-0.15/am/final.mdl
+          mv app/src/main/assets/vosk-model-small-en-us-0.15 app/src/main/assets/vosk-en-us-small-015
+          echo "Bundled English offline model"
+      - name: Run tests and assemble installable APK
+        working-directory: ultron-android
+        run: gradle --no-daemon testDebugUnitTest assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ULTRON-Android-v0.2-debug-apk
+          path: ultron-android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+      - name: Publish public prerelease APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "ultron-android-v0.2.0-alpha.1" \
+            "ultron-android/app/build/outputs/apk/debug/app-debug.apk#ULTRON-Android-Voice-Wake-v0.2-debug.apk" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "ULTRON Android 0.2 alpha — offline wake APK" \
+            --notes "User-enabled offline Vosk microphone foreground service. Intended lock-screen wake recognition when Android permits. Experimental debug APK; not audited, not guaranteed on all devices." \
+            --prerelease
