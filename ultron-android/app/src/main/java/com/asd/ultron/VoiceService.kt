@@ -39,7 +39,7 @@ class VoiceService : Service(), RecognitionListener {
             "hey ultron", "hello ultron", "ultron wake up", "wake up ultron",
             "hey ultra", "hey old tron", "hey all tron", "hey old drawn",
             "hey all drawn", "ultra wake up", "wake up ultra",
-            "i am back", "im back", "[unk]"
+            "i am back", "im back", "i m back", "[unk]"
         )).toString()
     }
 
