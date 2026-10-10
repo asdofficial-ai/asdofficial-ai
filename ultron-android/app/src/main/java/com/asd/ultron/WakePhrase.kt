@@ -11,7 +11,7 @@ object WakePhrase {
 
     private val name = "(?:ultron|ultra|ul tron|old tron|all tron|old drawn|all drawn)"
     private val wake = Regex(
-        "\\b(?:hey\\s+$name|hello\\s+$name|$name\\s+wake\\s+up|wake\\s+up\\s+$name|i\\s+am\\s+back|im\\s+back)\\b"
+        "\\b(?:hey\\s+$name|hello\\s+$name|$name\\s+wake\\s+up|wake\\s+up\\s+$name|i\\s+am\\s+back|i\\s+m\\s+back|im\\s+back)\\b"
     )
     private val nap = Regex(
         "^(?:$name\\s+)?(?:take\\s+a\\s+nap|take\\s+nap|go\\s+to\\s+sleep|go\\s+dormant|sleep|stand\\s*by|good\\s*night)\\b"
