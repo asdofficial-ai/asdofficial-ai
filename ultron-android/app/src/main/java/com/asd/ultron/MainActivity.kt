@@ -26,6 +26,8 @@ class MainActivity : Activity() {
     private lateinit var state: TextView
     private lateinit var detail: TextView
     private lateinit var wakeCheck: TextView
+    private lateinit var heardCheck: TextView
+    private lateinit var asrEvents: TextView
     private lateinit var access: EditText
     private val permissionCode = 1822
     private var isListening = false
@@ -34,6 +36,14 @@ class MainActivity : Activity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             state.text = intent?.getStringExtra(VoiceService.EXTRA_STATE) ?: "READY"
             detail.text = intent?.getStringExtra(VoiceService.EXTRA_DETAIL) ?: ""
+            val decoded = intent?.getStringExtra(VoiceService.EXTRA_HEARD)
+            if (decoded != null && ::heardCheck.isInitialized) {
+                heardCheck.text = "HEARD: $decoded"
+            }
+            if (::asrEvents.isInitialized) {
+                val count = intent?.getIntExtra(VoiceService.EXTRA_ASR_COUNT, 0) ?: 0
+                asrEvents.text = "RECOGNITION UPDATES: $count"
+            }
             isListening = !state.text.toString().contains("OFF") &&
                 !state.text.toString().contains("BLOCKED") &&
                 !state.text.toString().contains("DENIED")
@@ -55,22 +65,31 @@ class MainActivity : Activity() {
 
         add(root, label("U   ◉", 79f, red, true), 220, 14)
         add(root, label("ULTRON  /  ANDROID", 24f, Color.WHITE, true), -2, 10)
-        add(root, label("OFFLINE WAKE ENGINE  ·  V0.2", 12f, red, true), -2, 7)
+        add(root, label("OFFLINE WAKE ENGINE  ·  V0.2.3", 12f, red, true), -2, 7)
         state = label("MICROPHONE OFF", 16f, Color.WHITE, true)
         add(root,state,-2,32)
         detail = label("Enable microphone once; test your wake word with the screen locked.",13f,silver,false)
         add(root,detail,-2,10)
         wakeCheck = label("LOCK TEST: NO WAKE DETECTED YET", 12f, red, true)
         add(root,wakeCheck,-2,15)
+        heardCheck=label("HEARD: Nothing recognized yet", 13f, Color.WHITE, false)
+        add(root,heardCheck,-2,10)
+        asrEvents=label("RECOGNITION UPDATES: 0", 11f, silver, false)
+        add(root,asrEvents,-2,8)
+        add(root,label("If HEARD never changes while you speak, the voice recognizer has not decoded your voice. Try normal volume close to the phone. No shouting needed.",11f,silver,false),-2,9)
         add(root,button("🎙  ENABLE OFFLINE WAKE", red) { startMicrophone() },58,26)
+        add(root,button("🔊  TEST ULTRON VOICE", Color.rgb(70,36,47)) {
+            try { startService(Intent(this, VoiceService::class.java).setAction(VoiceService.TEST_VOICE)) }
+            catch (_:Exception) { detail.text = "Start microphone before testing voice." }
+        },49,10)
         add(root,button("■  STOP MICROPHONE", Color.rgb(75,28,38)) {
             stopService(Intent(this,VoiceService::class.java))
             state.text="MICROPHONE OFF"
             detail.text="Wake monitoring has stopped."
             isListening=false
         },52,10)
-        add(root,label("SAY  'HEY ULTRON'  OR  'ULTRON, WAKE UP'",12f, Color.rgb(253,191,201),true),-2,23)
-        add(root,label("Once awake, say your command. Say 'Ultron, take a nap' to return to the offline wake state. Say 'Ultron, end session' to stop the microphone.",12f,silver,false),-2,12)
+        add(root,label("SAY HEY ULTRON, ULTRON WAKE UP, OR I AM BACK",12f, Color.rgb(253,191,201),true),-2,23)
+        add(root,label("Tap ENABLE OFFLINE WAKE once. ULTRON keeps listening during nap mode, even while locked if Android allows it. Say Take a nap to sleep; say I am back to wake. The microphone pauses briefly while ULTRON speaks to avoid feedback. Press STOP MIC to turn it off.",12f,silver,false),-2,12)
 
         add(root,label("SECURE AI OWNER PAIRING",13f,Color.WHITE,true),-2,25)
         add(root,label("Only needed for intelligent replies. The backend must have its API key and owner access code configured. This is not a text chat.",12f,silver,false),-2,10)
