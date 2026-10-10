@@ -32,4 +32,19 @@ class WakePhraseTest {
         assertEquals(WakePhrase.Kind.NAP, WakePhrase.parse("Ultron stand by", true).kind)
         assertEquals(WakePhrase.Kind.STOP, WakePhrase.parse("Ultron stop listening", true).kind)
     }
+
+    @Test fun phoneticWakePhrasesForOfflineEnglishRecognition() {
+        assertEquals(WakePhrase.Kind.WAKE, WakePhrase.parse("Hey old tron", false).kind)
+        assertEquals(WakePhrase.Kind.WAKE, WakePhrase.parse("Hey all tron", false).kind)
+        assertEquals(WakePhrase.Kind.WAKE, WakePhrase.parse("Hey ultra", false).kind)
+        assertEquals(WakePhrase.Kind.WAKE, WakePhrase.parse("wake up ultra", false).kind)
+        assertEquals(WakePhrase.Kind.WAKE, WakePhrase.parse("Ultron wake up", false).kind)
+        assertEquals(WakePhrase.Kind.WAKE, WakePhrase.parse("I'm back", false).kind)
+        assertEquals(WakePhrase.Kind.WAKE, WakePhrase.parse("I am back", false).kind)
+    }
+    @Test fun explicitNapInsteadOfAutomaticSleep() {
+        assertEquals(WakePhrase.Kind.NAP, WakePhrase.parse("Take a nap", true).kind)
+        assertEquals(WakePhrase.Kind.NAP, WakePhrase.parse("Go to sleep", true).kind)
+        assertEquals(WakePhrase.Kind.COMMAND, WakePhrase.parse("What can you do", true).kind)
+    }
 }
