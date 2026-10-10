@@ -8,6 +8,7 @@ import android.content.pm.ServiceInfo
 import android.os.*
 import android.speech.tts.*
 import org.json.JSONObject
+import org.json.JSONArray
 import org.vosk.Model
 import org.vosk.Recognizer
 import org.vosk.android.SpeechService
@@ -25,13 +26,21 @@ class VoiceService : Service(), RecognitionListener {
         const val STOP = "com.asd.ultron.STOP"
         const val CONNECT = "com.asd.ultron.CONNECT"
         const val STATUS = "com.asd.ultron.STATUS"
+        const val TEST_VOICE = "com.asd.ultron.TEST_VOICE"
         const val EVENT = "com.asd.ultron.STATE"
         const val EXTRA_CODE = "owner_code"
         const val EXTRA_STATE = "state"
         const val EXTRA_DETAIL = "detail"
+        const val EXTRA_HEARD = "last_heard"
+        const val EXTRA_ASR_COUNT = "asr_count"
         private const val CHANNEL = "ultron_foreground_offline"
         private const val NOTIFY_ID = 711
-        private const val NAP_MS = 150000L
+        private val WAKE_GRAMMAR = JSONArray(arrayOf(
+            "hey ultron", "hello ultron", "ultron wake up", "wake up ultron",
+            "hey ultra", "hey old tron", "hey all tron", "hey old drawn",
+            "hey all drawn", "ultra wake up", "wake up ultra",
+            "i am back", "im back", "[unk]"
+        )).toString()
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -48,21 +57,12 @@ class VoiceService : Service(), RecognitionListener {
     private var busy = false
     private var speaking = false
     private var ready = false
-    private var lastCommand = 0L
+    private var lastHeard = "Nothing recognized yet"
+    private var asrCount = 0
     private var retry = 0
     private var latestState = "MICROPHONE OFF"
     private var latestDetail = "Start ULTRON to enable offline wake monitoring."
 
-    private val watchdog = object : Runnable {
-        override fun run() {
-            if (!running) return
-            if (awake && !busy && !speaking && SystemClock.elapsedRealtime() - lastCommand > NAP_MS) {
-                awake = false
-                status("NAP MODE", "Listening for wake phrase, including when locked if Android allows.")
-            }
-            handler.postDelayed(this, 15000L)
-        }
-    }
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -83,6 +83,14 @@ class VoiceService : Service(), RecognitionListener {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             STOP -> { stopSelf(); return START_NOT_STICKY }
+            TEST_VOICE -> {
+                if (running) speak("Voice output is working, sir.")
+                else {
+                    status("MICROPHONE OFF", "Enable microphone first, then test speech output.")
+                    stopSelf()
+                }
+                return START_NOT_STICKY
+            }
             STATUS -> {
                 status(if (running) latestState else "MICROPHONE OFF",
                     if (running) latestDetail else "Wake monitoring is not running.")
@@ -126,12 +134,12 @@ class VoiceService : Service(), RecognitionListener {
             stopSelf();return
         }
         running = true
-        lastCommand = SystemClock.elapsedRealtime()
+        lastHeard = "Nothing recognized yet"
+        asrCount = 0
         try {
             wakeLock = (getSystemService(POWER_SERVICE) as PowerManager)
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ULTRON:OfflineWake").apply { acquire() }
         } catch (_: Exception) {}
-        handler.post(watchdog)
         status("PREPARING MODEL", "First launch unpacks offline model. Please wait.")
         background.execute {
             try {
@@ -171,7 +179,8 @@ class VoiceService : Service(), RecognitionListener {
     private fun listen() {
         if (!running || !ready || busy || speaking || speech != null) return
         try {
-            recognizer = Recognizer(model ?: return, 16000f)
+            recognizer = if (awake) Recognizer(model ?: return, 16000f)
+                else Recognizer(model ?: return, 16000f, WAKE_GRAMMAR)
             speech = SpeechService(recognizer, 16000f)
             speech?.startListening(this)
             retry = 0
@@ -192,39 +201,66 @@ class VoiceService : Service(), RecognitionListener {
         recognizer = null
     }
 
+    /** Last recognized words are kept only in memory for on-screen troubleshooting. */
+    private fun diagnostic(text: String) {
+        val normalized = text.trim().take(110)
+        if (normalized.isBlank() || normalized == lastHeard) return
+        lastHeard = normalized
+        asrCount++
+        sendBroadcast(Intent(EVENT).setPackage(packageName)
+            .putExtra(EXTRA_STATE, latestState)
+            .putExtra(EXTRA_DETAIL, latestDetail)
+            .putExtra(EXTRA_HEARD, lastHeard)
+            .putExtra(EXTRA_ASR_COUNT, asrCount))
+    }
+    // Vosk calls these from its audio thread. Serialize app state changes on main.
     override fun onPartialResult(hypothesis: String?) {
-        if (!running || awake || busy || speaking) return
-        val spoken = runCatching { JSONObject(hypothesis ?: "{}").optString("partial") }.getOrDefault("")
-        if (WakePhrase.parse(spoken, false).kind == WakePhrase.Kind.WAKE) receive(spoken)
+        val heard = runCatching { JSONObject(hypothesis ?: "{}").optString("partial") }.getOrDefault("")
+        handler.post {
+            if (!running || busy || speaking) return@post
+            diagnostic(heard)
+            if (!awake && WakePhrase.parse(heard, false).kind == WakePhrase.Kind.WAKE) receive(heard)
+        }
     }
     override fun onResult(hypothesis: String?) {
-        if (!running || busy || speaking) return
-        val spoken = runCatching { JSONObject(hypothesis ?: "{}").optString("text") }.getOrDefault("")
-        if (spoken.isNotBlank()) receive(spoken)
+        val heard = runCatching { JSONObject(hypothesis ?: "{}").optString("text") }.getOrDefault("")
+        handler.post {
+            if (!running || busy || speaking || heard.isBlank()) return@post
+            diagnostic(heard)
+            receive(heard)
+        }
     }
     override fun onFinalResult(hypothesis: String?) {
-        if (!running || busy || speaking) return
-        val spoken = runCatching { JSONObject(hypothesis ?: "{}").optString("text") }.getOrDefault("")
-        if (spoken.isNotBlank()) receive(spoken)
+        val heard = runCatching { JSONObject(hypothesis ?: "{}").optString("text") }.getOrDefault("")
+        handler.post {
+            if (!running || busy || speaking || heard.isBlank()) return@post
+            diagnostic(heard)
+            receive(heard)
+        }
     }
     override fun onError(exception: Exception?) {
-        if (!running) return
-        status("LISTENING ERROR", exception?.message ?: "Offline recognition failed.")
-        stopRecognition()
-        handler.postDelayed({ listen() }, 2200L)
+        handler.post {
+            if (!running) return@post
+            status("LISTENING ERROR", exception?.message ?: "Offline recognition failed.")
+            stopRecognition()
+            handler.postDelayed({ listen() }, 2200L)
+        }
     }
     override fun onTimeout() {
-        if (!running) return
-        stopRecognition()
-        handler.postDelayed({ listen() }, 700L)
+        handler.post {
+            if (!running) return@post
+            stopRecognition()
+            handler.postDelayed({ listen() }, 700L)
+        }
     }
+
     private fun receive(spoken: String) {
         if (!running || busy || speaking) return
         val parsed = WakePhrase.parse(spoken, awake)
         when (parsed.kind) {
             WakePhrase.Kind.EMPTY -> return
             WakePhrase.Kind.WAKE -> {
-                awake = true;lastCommand = SystemClock.elapsedRealtime()
+                awake = true
                 noteWakeDetection()
                 if (parsed.command.isBlank()) speak("I am online, sir. How may I assist you?")
                 else command(parsed.command)
@@ -232,7 +268,6 @@ class VoiceService : Service(), RecognitionListener {
             WakePhrase.Kind.NAP -> { awake = false;speak("Entering nap mode. Call me when needed.") }
             WakePhrase.Kind.STOP -> speak("Disabling microphone.", true)
             WakePhrase.Kind.COMMAND -> {
-                lastCommand = SystemClock.elapsedRealtime()
                 if (parsed.command.isNotBlank()) command(parsed.command)
             }
         }
@@ -309,14 +344,14 @@ class VoiceService : Service(), RecognitionListener {
         latestState = state
         latestDetail = detail
         sendBroadcast(Intent(EVENT).setPackage(packageName)
-            .putExtra(EXTRA_STATE, state).putExtra(EXTRA_DETAIL, detail))
+            .putExtra(EXTRA_STATE, state).putExtra(EXTRA_DETAIL, detail)
+            .putExtra(EXTRA_HEARD, lastHeard).putExtra(EXTRA_ASR_COUNT, asrCount))
         if (running) try {
             getSystemService(NotificationManager::class.java).notify(NOTIFY_ID, notification(state + ": " + detail))
         } catch (_: Exception) {}
     }
     override fun onDestroy() {
         running = false
-        handler.removeCallbacks(watchdog)
         stopRecognition()
         try { model?.close() } catch (_: Exception) {}
         model = null
