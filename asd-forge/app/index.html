@@ -126,6 +126,24 @@ body{background:radial-gradient(ellipse 90% 50% at 100% 0%,#8f43201b,transparent
 @media(max-width:1159px) and (min-width:751px){.finder-chips{grid-template-columns:1fr}}
 @media(max-width:750px){.sidebar{overflow-y:auto}.browse-mobile{display:grid;place-items:center;border:1px solid #695042;background:#32221d;color:#ffb38f;width:36px;height:36px;border-radius:10px;flex:none}.finder-adjust{display:none}.finder-chips{grid-template-columns:1fr 1fr}}
 .marketplace-note{margin-top:10px;padding:10px;border:1px solid #6b4c3d;border-radius:11px;color:#c7afa2;background:#291f1e;font-size:.75rem}.marketplace-buttons{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+
+/* ASD Forge sign-in / registration motion. No static design changes. */
+@keyframes forgeAuthArrive{from{opacity:0;transform:translateY(14px) scale(.988)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes forgeAuthPanelRight{0%{opacity:0;transform:translateX(-175%) skewX(-6deg)}15%{opacity:.95}55%{opacity:1;transform:translateX(82%) skewX(3deg)}100%{opacity:0;transform:translateX(260%) skewX(0)}}
+@keyframes forgeAuthPanelLeft{0%{opacity:0;transform:translateX(260%) skewX(6deg)}15%{opacity:.95}55%{opacity:1;transform:translateX(75%) skewX(-3deg)}100%{opacity:0;transform:translateX(-175%) skewX(0)}}
+@keyframes forgeAuthCopySwap{0%{opacity:1;transform:translateX(0);filter:blur(0)}32%{opacity:0;transform:translateX(13px);filter:blur(3px)}48%{opacity:0;transform:translateX(-11px);filter:blur(2px)}100%{opacity:1;transform:translateX(0);filter:blur(0)}}
+@keyframes forgeAuthEnter{0%{opacity:1;transform:scale(1);filter:blur(0)}100%{opacity:0;transform:scale(.975);filter:blur(3px)}}
+.needs-auth #authGate .access-layout{animation:forgeAuthArrive .45s cubic-bezier(.18,.75,.2,1) both}
+.access-layout.auth-in-motion{isolation:isolate}
+.access-layout.auth-in-motion:after{content:'';position:absolute;z-index:5;left:30%;top:-12%;width:39%;height:124%;border-radius:45% 58% 42% 53% / 36% 65% 35% 64%;background:linear-gradient(137deg,#372520,#201b1d 72%);box-shadow:0 0 0 1px #ffb5842c,0 0 45px #ffa07727;pointer-events:none;animation:forgeAuthPanelRight .72s cubic-bezier(.65,.02,.22,1) both}
+.access-layout.auth-in-motion[data-next-mode="create"]:after{animation-name:forgeAuthPanelLeft}
+.access-layout.auth-in-motion .access-main h2,.access-layout.auth-in-motion .access-subtitle,.access-layout.auth-in-motion .access-form,.access-layout.auth-in-motion .access-switch{animation:forgeAuthCopySwap .72s cubic-bezier(.55,.05,.25,1) both}
+.access-layout.auth-in-motion .access-tabs button{transition:background-color .22s,border-color .22s,color .22s}
+.access-layout.auth-entering{animation:forgeAuthEnter .38s ease-in both!important}
+@keyframes forgeAuthPanelDown{0%{opacity:0;transform:translateY(-155%) scaleX(.96)}15%{opacity:.95}56%{opacity:1;transform:translateY(64%) scaleX(1.03)}100%{opacity:0;transform:translateY(220%) scaleX(1)}}
+@keyframes forgeAuthPanelUp{0%{opacity:0;transform:translateY(220%) scaleX(.96)}15%{opacity:.95}56%{opacity:1;transform:translateY(64%) scaleX(1.03)}100%{opacity:0;transform:translateY(-155%) scaleX(1)}}
+@media(max-width:850px){.access-layout.auth-in-motion:after{left:-9%;top:9%;width:118%;height:40%;border-radius:42% 58% 54% 46% / 37% 62% 38% 63%;animation-name:forgeAuthPanelDown}.access-layout.auth-in-motion[data-next-mode="create"]:after{animation-name:forgeAuthPanelUp}}
+@media(prefers-reduced-motion:reduce){.needs-auth #authGate .access-layout,.access-layout.auth-in-motion:after,.access-layout.auth-in-motion .access-main h2,.access-layout.auth-in-motion .access-subtitle,.access-layout.auth-in-motion .access-form,.access-layout.auth-in-motion .access-switch,.access-layout.auth-entering{animation:none!important;transition:none!important}}
 </style></head>
 <body>
 <section id="authGate" aria-label="ASD Forge account access"><div class="access-layout"><div class="access-story"><div class="access-brand"><span class="access-mark">A</span><div><b>ASD FORGE</b><small>THE INDEPENDENT WAY</small></div></div><div class="eyebrow">YOUR NEXT CHAPTER</div><h1>Build your<br><em>own lane.</em></h1><p>A simple business workspace for the independent thinker. Create your service, organize clients, and grow through doing.</p><div class="bottom-note"><span></span> BUILD • SELL • GROW</div></div><div class="access-main"><a class="access-back" href="/">← Back to the website</a><div class="access-tabs" role="group" aria-label="Account type"><button type="button" id="authTabCreate" class="selected">Create account</button><button type="button" id="authTabLogin">Sign in</button></div><h2 id="authTitle">Create your workspace</h2><p id="authSubtitle" class="access-subtitle">Start with one skill. Build your way.</p><form id="authForm" class="access-form" data-mode="create"><div class="access-field" id="authNameGroup"><label for="authName">Your name</label><input id="authName" type="text" autocomplete="name" placeholder="e.g. Your first name" minlength="2" maxlength="60" required></div><div class="access-field"><label for="authEmail">Email address</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" maxlength="120" required></div><div class="access-field"><label for="authPass">Password</label><div class="password-row"><input id="authPass" type="password" placeholder="Your password" minlength="8" maxlength="128" autocomplete="new-password" required><button id="togglePassword" type="button">Show</button></div><p class="access-help" id="authPasswordHint">At least 8 characters.</p></div><div class="access-field" id="authConfirmGroup"><label for="authConfirm">Confirm password</label><input id="authConfirm" type="password" placeholder="Repeat password" minlength="8" maxlength="128" autocomplete="new-password" required></div><p id="authError" class="auth-error" role="alert" hidden></p><button class="access-submit" id="authSubmit" type="submit">Create my workspace ↗</button></form><p class="access-switch"><span id="authFoot">Already created a local account?</span><button id="authToggle" type="button">Sign in</button></p><p class="access-caveat"><strong>Local-account beta:</strong> Your account and business data are saved in this browser only—not in the cloud. There's no password reset or cross-device sync yet. Export backups from Settings.</p></div></div></section>
@@ -264,12 +282,25 @@ async function derive(pass,salt){if(!crypto.subtle)throw Error('Password support
 const showError=(msg)=>{let e=$('#authError');e.textContent=msg;e.hidden=false};
 const clearError=()=>{let e=$('#authError');e.hidden=true;e.textContent=''};
 const modeSet=(mode)=>{const create=mode==='create';$('#authTitle').textContent=create?'Create your workspace':'Welcome back.';$('#authSubtitle').textContent=create?'Start with one skill. Build your way.':'Sign in to the workspace saved on this device.';$('#authNameGroup').hidden=!create;$('#authName').required=create;$('#authPass').autocomplete=create?'new-password':'current-password';$('#authSubmit').textContent=create?'Create my workspace ↗':'Sign in to Forge ↗';$('#authFoot').textContent=create?'Already created a local account?':'Need a new local account?';$('#authToggle').textContent=create?'Sign in':'Create an account';$('#authForm').dataset.mode=mode;clearError();$('#authConfirmGroup').hidden=!create;$('#authConfirm').required=create;$('#authPasswordHint').hidden=!create;};
+const authLayout=gate.querySelector('.access-layout');
+let authAnimationBusy=false;
+const authPrefersLessMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)');
+function animateAuthMode(mode){
+ if(mode===$('#authForm').dataset.mode||authAnimationBusy)return;
+ if(authPrefersLessMotion?.matches){modeSet(mode);updateTabs();return;}
+ authAnimationBusy=true;
+ authLayout.dataset.nextMode=mode;
+ authLayout.classList.add('auth-in-motion');
+ setTimeout(()=>{modeSet(mode);updateTabs()},315);
+ setTimeout(()=>{authLayout.classList.remove('auth-in-motion');delete authLayout.dataset.nextMode;authAnimationBusy=false},740);
+}
+
 const current=$('#authForm').dataset.mode||'create';modeSet(current);
-$('#authToggle').addEventListener('click',()=>modeSet($('#authForm').dataset.mode==='create'?'login':'create'));
-$('#authTabCreate').addEventListener('click',()=>{modeSet('create');updateTabs()});
-$('#authTabLogin').addEventListener('click',()=>{modeSet('login');updateTabs()});
+$('#authToggle').addEventListener('click',()=>animateAuthMode($('#authForm').dataset.mode==='create'?'login':'create'));
+$('#authTabCreate').addEventListener('click',()=>animateAuthMode('create'));
+$('#authTabLogin').addEventListener('click',()=>animateAuthMode('login'));
 function updateTabs(){const create=$('#authForm').dataset.mode==='create';$('#authTabCreate').classList.toggle('selected',create);$('#authTabLogin').classList.toggle('selected',!create);}
-$('#authToggle').addEventListener('click',updateTabs);
+
 $('#togglePassword').addEventListener('click',()=>{const input=$('#authPass');const reveal=input.type==='password';input.type=reveal?'text':'password';$('#togglePassword').textContent=reveal?'Hide':'Show';});
 $('#authForm').addEventListener('submit',async e=>{
 e.preventDefault();clearError();const button=$('#authSubmit');button.disabled=true;button.textContent='Checking…';
@@ -295,7 +326,9 @@ try{
   if(!acct||calculated!==acct.hash)throw Error('Incorrect email or password for this device.');
  }
  sessionStorage.setItem(SESSION_KEY,acct.id);
- location.replace('/app/');
+ if(authPrefersLessMotion?.matches){location.replace('/app/');return;}
+ authLayout.classList.add('auth-entering');
+ setTimeout(()=>location.replace('/app/'),360);
 }catch(err){showError(err?.message||'Something went wrong.');button.disabled=false;modeSet($('#authForm').dataset.mode)}
 });
 window.forgeLogout=function(){sessionStorage.removeItem(SESSION_KEY);location.replace('/app/')};
