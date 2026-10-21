@@ -1,114 +1,101 @@
-(()=>{"use strict";
-const $=(q,root=document)=>root.querySelector(q), $$=(q,root=document)=>Array.from(root.querySelectorAll(q));
-const catalog={
-  video:[["cut","✂","Trim"],["mirror","⇄","Mirror"],["rotate","↻","Rotate"],["crop","⊞","Crop"],["resize","▣","Resize"],["speed","↗","Speed"],["reverse","⟲","Reverse"],["fps","◷","FPS"],["filter","◐","Filters"],["text","T","Text"],["fade","◌","Fade"],["compress","▤","Compress"],["gif","◆","GIF"],["frame","◎","Frame"]],
-  audio:[["extract","♫","Extract MP3"],["add_audio","⊕","Add audio"],["volume","▱","Volume"],["mute","✕","Mute"]],
-  photo:[["enhance","✧","Enhance"],["background","◌","Solid BG"],["mirror","⇄","Mirror"],["rotate","↻","Rotate"],["crop","⊞","Crop"],["resize","▣","Resize"],["filter","◐","Filters"],["text","T","Text"]]
-};
-function field(name,title,html,wide=false){return '<div class="field'+(wide?' wide':'')+'"><label>'+title+'</label>'+html+'</div>'}
-const number=(name,label,value)=>field(name,label,'<input type="number" min="0" step=".1" name="'+name+'" value="'+value+'">');
-const rangeFields=()=>number("start","Start (seconds)",0)+number("duration","Duration (0 = remaining)",0);
-const htmlSettings={
-cut:rangeFields(),
-mirror:field("variant","Flip direction",'<select name="variant"><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select>'),
-rotate:field("variant","Rotate",'<select name="variant"><option value="right">90° clockwise</option><option value="left">90° counterclockwise</option><option value="180">180°</option></select>'),
-crop:field("variant","Aspect ratio",'<select name="variant"><option value="9:16">9:16 · Vertical</option><option value="16:9">16:9 · Wide</option><option value="1:1">1:1 · Square</option><option value="4:3">4:3 · Classic</option></select>'),
-resize:field("width","Output width",'<select name="width"><option value="480">480 px</option><option value="720" selected>720 px</option><option value="1080">1080 px</option><option value="1920">1920 px</option></select>'),
-speed:field("speed","Playback speed",'<select name="speed"><option value=".5">0.5× slower</option><option value=".75">0.75× slower</option><option value="1.25" selected>1.25× faster</option><option value="1.5">1.5× faster</option><option value="2">2× faster</option></select>'),
-fps:field("fps","Target FPS",'<select name="fps"><option>24</option><option>30</option><option selected>60</option><option>120</option><option>250</option></select>')+'<label class="checkline wide"><input name="smooth" type="checkbox"> Interpolate frames (≤60 FPS, ≤8 sec)</label><p class="hint wide">120/250 FPS is conversion, not native recorded FPS; max 10 seconds.</p>',
-filter:field("variant","Color filter",'<select name="variant"><option value="vivid">Vivid</option><option value="bw">Black & white</option><option value="warm">Warm</option><option value="cool">Cool</option><option value="soft">Soft</option></select>'),
-text:field("caption","Overlay caption",'<input type="text" name="caption" maxlength="120" placeholder="ENTER YOUR TEXT">',true),
-volume:field("volume","Original sound volume",'<select name="volume"><option value="0">Mute</option><option value=".5">50%</option><option value="1" selected>100%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select>'),
-add_audio:'<p class="hint wide">Choose an original track or upload audio. Use Mix to keep the original sound.</p>',
-extract:'<p class="hint wide">Export the original video sound as an MP3 audio file.</p>',
-background:field("tolerance","Solid color tolerance",'<input type="range" name="tolerance" min="5" max="150" value="42">',true)+'<p class="hint wide">For plain backgrounds only — not AI segmentation.</p>',
-enhance:'<p class="hint wide">Sharpness, contrast and 2× enlargement. Not an AI upscaler.</p>',
-reverse:'<p class="hint wide">Reverse footage and original sound. Maximum 12 seconds.</p>',
-gif:'<p class="hint wide">Silent GIF export, up to 10 seconds.</p>',
-compress:'<p class="hint wide">Compress with reduced output bitrate, at most 720p.</p>',
-fade:'<p class="hint wide">One-second fade in and out.</p>',
-mute:'<p class="hint wide">Remove the original sound track.</p>',
-frame:number("start","Frame time (seconds)",1)
-};
-let kind="video",tool="cut",working=false,resultUrl=null,sourceUrl=null,tracks=[];
-const form=$("#edit-form");
-function notify(s,type=""){$("#notification").textContent=s;$("#notification").className="notification"+(type?" "+type:"")}
-function updateUpload(){const f=$("#file").files[0];$("#upload-title").textContent=f?f.name:"Tap or drop a file here";$("#upload-subtitle").textContent=f?(f.size/1048576).toFixed(2)+" MB selected":kind==="photo"?"JPG, PNG, WebP · Max 45 MB":"MP4, MOV, WebM, MKV · Max 45 MB"}
-function clearResult(){if(resultUrl)URL.revokeObjectURL(resultUrl);resultUrl=null;$("#media-output").replaceChildren();$("#media-output").hidden=true;$("#empty-state").hidden=false;const a=$("#download");a.removeAttribute("href");a.classList.add("disabled");a.setAttribute("aria-disabled","true");$("#output-info").innerHTML="No output yet <small>Results stay in this tab, not on the server.</small>";$("#output-stage").textContent="OUTPUT / 02"}
-function render(){
-const grid=$("#tool-grid");grid.replaceChildren();
-for(const [id,glyph,title] of catalog[kind]){
- const b=document.createElement("button");b.type="button";b.className="tool-choose"+(id===tool?" active":"");b.setAttribute("aria-pressed",String(id===tool));const icon=document.createElement("span");icon.className="glyph";icon.textContent=glyph;const txt=document.createElement("span");txt.textContent=title;b.append(icon,txt);b.addEventListener("click",()=>selectTool(id));grid.append(b)
+(()=>{'use strict';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const initial={mirror:false,flip:false,rotate:0,ratio:'original',brightness:1,contrast:1,saturation:1,sharpness:0,blur:0,removeBg:false,tolerance:40,speed:1,fps:30,caption:'',textColor:'#ffffff',textPosition:'bottom',volume:1,muteOriginal:false,musicVolume:.65,width:720,imageFormat:'png',start:0,end:15};
+let st={...initial},file=null,audio=null,track='',type='video',duration=0,screen='media',sourceUrl='',resultUrl='',tracks=[],search='',undo=[],redo=[],busy=false;
+const titles={media:['Media','Import a photo or a video clip.'],transform:['Transform','Mirror, flip, crop, rotate.'],color:['Adjust','Make your colours cinematic.'],speed:['Speed & FPS','Control playback and frame rate.'],text:['Text overlay','Add a clean caption.'],audio:['Audio studio','Add, extract and mix sound.'],export:['Export','Save the finished edit.']};
+const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=v=>{v=Math.floor(Number(v)||0);return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0')};
+function toast(t){let e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),4500)}
+function history(){undo.push({...st,track});if(undo.length>35)undo.shift();redo=[]}
+function group(title,body){return '<section class="panel-group"><h3 class="group-title">'+title+'</h3>'+body+'</section>'}
+function range(label,key,min,max,step){return '<div class="control"><div class="control-head"><label>'+label+'</label><span class="val" data-val="'+key+'">'+st[key]+'</span></div><input data-setting="'+key+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+st[key]+'"></div>'}
+function select(label,key,opts){return '<div class="control"><div class="control-head"><label>'+label+'</label></div><select data-setting="'+key+'">'+opts.map(o=>'<option value="'+o[0]+'" '+(String(st[key])===String(o[0])?'selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'}
+function checkbox(label,key){return '<label class="checkline"><input type="checkbox" data-setting="'+key+'" '+(st[key]?'checked':'')+'>'+label+'</label>'}
+function btn(id,label,cls){return '<button id="'+id+'" class="btn '+(cls||'flat')+' full">'+label+'</button>'}
+function musicList(){let filtered=tracks.filter(t=>(t.title+' '+t.genre).toLowerCase().includes(search.toLowerCase()));return filtered.length?filtered.map(t=>'<button data-track="'+t.id+'" class="music-item '+(track===t.id?'active':'')+'"><span class="music-art">♫</span><span class="music-desc"><strong>'+esc(t.title)+'</strong><small>'+esc(t.genre)+' · '+t.bpm+' BPM</small></span><span class="music-play">'+(track===t.id?'✓':'▶')+'</span></button>').join(''):'<p class="panel-note">'+(tracks.length?'No matching music.':'Loading music library...')+'</p>'}
+function wireMusic(){$$('#musicList [data-track]').forEach(b=>b.onclick=()=>{track=b.dataset.track;audio=null;$('#musicPlayer').src='/api/music/'+track;$('#musicPlayer').hidden=false;$('#musicPlayer').play().catch(()=>{});$('#audioTrackName').textContent='♫ '+tracks.find(t=>t.id===track).title;$('#musicList').innerHTML=musicList();wireMusic();toast('Music added')})}
+function panel(id){
+screen=id;$$('[data-panel]').forEach(b=>b.classList.toggle('active',b.dataset.panel===id));$('#panelTitle').textContent=titles[id][0];$('#panelDesc').textContent=titles[id][1];
+let c='';
+if(id==='media')c=group('SOURCE',btn('chooseMedia','＋ Import photo or video','primary')+'<p class="panel-note">MP4, MOV, WEBM, MKV, JPG, PNG and WEBP. Max 40MB.</p><div class="selected-track">'+(file?esc(file.name):'No media loaded')+'</div>')+group('QUICK TOOLS','<div class="button-grid"><button class="tool-btn" data-goto="transform"><strong>⟷</strong> Mirror / flip</button><button class="tool-btn" data-goto="color"><strong>◐</strong> Colour</button><button class="tool-btn" data-goto="audio"><strong>♫</strong> Audio</button><button class="tool-btn" data-goto="export"><strong>⇩</strong> Export</button></div>')+group('ABOUT','<div class="pill-warning">Mobile-friendly single-clip editor. This release does not support multi-clip transitions, complex keyframes or copyrighted stock songs.</div>');
+if(id==='transform')c=group('FLIP / MIRROR','<div class="button-grid"><button class="tool-btn '+(st.mirror?'selected':'')+'" data-toggle="mirror"><strong>⟷</strong> Mirror</button><button class="tool-btn '+(st.flip?'selected':'')+'" data-toggle="flip"><strong>↟↡</strong> Flip</button></div>'+select('Rotate','rotate',[[0,'None'],[90,'90 degrees'],[180,'180 degrees'],[270,'270 degrees']])+select('Crop to aspect ratio','ratio',[['original','Keep original'],['9:16','9:16 · TikTok'],['16:9','16:9 · YouTube'],['1:1','1:1 · Square'],['4:3','4:3 · Classic']])+(type==='photo'?checkbox('Remove simple flat background','removeBg')+range('Colour tolerance','tolerance',10,150,5):''))+group('HELP','<p class="panel-note">Mirror reverses left/right. Flip reverses top/bottom. Crop removes outer edges.</p>');
+if(id==='color')c=group('IMAGE AND VIDEO',range('Brightness','brightness',.3,1.8,.05)+range('Contrast','contrast',.5,2,.05)+range('Saturation','saturation',0,2.5,.05))+group('DETAIL',range('Sharpen','sharpness',0,3,.1)+range('Blur','blur',0,5,.25))+btn('resetColor','Reset colour settings');
+if(id==='speed')c=group('SPEED',range('Playback speed','speed',.5,3,.25)+'<p class="panel-note">Affects the exported video duration.</p>')+group('FRAME RATE',select('Output FPS','fps',[[24,'24 FPS'],[30,'30 FPS'],[60,'60 FPS'],[120,'120 FPS'],[250,'250 FPS']])+'<p class="panel-note">250 FPS is conversion, not new camera detail. Over 60 FPS limits exports to 12s.</p>');
+if(id==='text')c=group('CAPTION','<div class="control"><label for="captionEditor">Your text</label><textarea id="captionEditor" data-setting="caption" maxlength="160" placeholder="Write your title...">'+esc(st.caption)+'</textarea></div>'+select('Position','textPosition',[['bottom','Bottom'],['top','Top']])+'<div class="control"><label>Text colour</label><input type="color" data-setting="textColor" value="'+st.textColor+'" style="width:100%;height:41px"></div>')+group('TIP','<p class="panel-note">Text is burned into your exported file.</p>');
+if(id==='audio')c=group('AUDIO ACTIONS',btn('extractAudio','♫ Extract audio (.mp3)')+'<p class="panel-note">Take the sound out of the original video.</p>'+btn('uploadAudio','＋ Upload your own audio')+(audio?'<p class="selected-track">✓ '+esc(audio.name)+'</p>':''))+group('BUILT-IN MUSIC','<div class="music-search">⌕ &nbsp;<input type="search" id="musicSearch" placeholder="Search music or genre..." value="'+esc(search)+'"></div><div class="music-list" id="musicList">'+musicList()+'</div><p class="panel-note">Original computer-made instrumental loops. No commercial copyrighted songs.</p>')+group('AUDIO MIX',range('Original sound volume','volume',0,2,.1)+range('Music volume','musicVolume',0,2,.1)+checkbox('Mute source audio','muteOriginal')+btn('clearAudio','Remove added audio'));
+if(id==='export')c=group('OUTPUT',type==='video'?select('Resolution width','width',[[480,'480 px'],[720,'720 px · HD'],[1080,'1080 px · Full HD']])+select('FPS','fps',[[24,'24 FPS'],[30,'30 FPS'],[60,'60 FPS'],[120,'120 FPS'],[250,'250 FPS']]):select('Image format','imageFormat',[['png','PNG · High quality'],['jpg','JPG · Smaller file']]))+group('RENDER',btn('renderNow','⇩ Export '+(type==='video'?'MP4':'image'),'primary')+'<p class="panel-note">Export can take longer on large files. Max video clip length: 45 seconds.</p>')+group('PROJECT',btn('saveSettings','Save project settings (.json)'));
+$('#panelBody').innerHTML=c;
+$$('#panelBody [data-setting]').forEach(el=>{
+el.oninput=()=>{if(!el.dataset.editing){history();el.dataset.editing='1'}let key=el.dataset.setting;st[key]=el.type==='checkbox'?el.checked:(el.type==='range'||['fps','rotate','width'].includes(key))?Number(el.value):el.value;let v=$('#panelBody [data-val="'+key+'"]');if(v)v.textContent=Math.round(Number(st[key])*100)/100;applyPreview()};
+el.onchange=()=>{delete el.dataset.editing;if(el.type==='checkbox')panel(screen)};
+});
+$$('#panelBody [data-toggle]').forEach(el=>el.onclick=()=>{history();st[el.dataset.toggle]=!st[el.dataset.toggle];panel(screen);applyPreview()});
+$$('#panelBody [data-goto]').forEach(el=>el.onclick=()=>panel(el.dataset.goto));
+const click=(id,fn)=>{const b=$('#panelBody #'+id);if(b)b.onclick=fn};
+click('chooseMedia',()=>$('#fileInput').click());click('uploadAudio',()=>$('#audioInput').click());click('extractAudio',()=>exportFile('extractAudio'));click('renderNow',()=>exportFile('video'));
+click('clearAudio',()=>{track='';audio=null;$('#audioTrackName').textContent='Audio track · none selected';panel('audio');toast('Music removed')});
+click('resetColor',()=>{history();['brightness','contrast','saturation','sharpness','blur'].forEach(k=>st[k]=initial[k]);panel('color');applyPreview()});
+click('saveSettings',()=>{let data=JSON.stringify({name:'ASD Motion Lab',settings:st,track,source:file?.name||null},null,2);let blob=new Blob([data],{type:'application/json'});let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='ASD-Motion-Settings.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)});
+if(id==='audio'){let input=$('#musicSearch');input.oninput=()=>{search=input.value;$('#musicList').innerHTML=musicList();wireMusic()};wireMusic()}
 }
-let h=htmlSettings[tool]||"";
-if(kind!=="photo"&&!["cut","frame","speed","reverse","gif"].includes(tool)) h+='<div class="field wide"><details><summary>Optional clip range</summary><div class="nested-timing">'+rangeFields()+'</div></details></div>';
-if(kind!=="photo"&&["speed","reverse","gif"].includes(tool))h+=rangeFields();
-$("#settings").innerHTML=h;$("#settings").style.display=h.trim()?"grid":"none";
-$("#music-choice").hidden=tool!=="add_audio";
-$("#file").accept=kind==="photo"?"image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp":"video/*,.mp4,.mov,.mkv,.webm";
-updateUpload()
+function applyPreview(){
+let tf='scaleX('+(st.mirror?-1:1)+') scaleY('+(st.flip?-1:1)+') rotate('+st.rotate+'deg)';
+let fl='brightness('+st.brightness+') contrast('+st.contrast+') saturate('+st.saturation+') blur('+st.blur+'px)';
+for(let id of ['video','photo']){$('#'+id).style.transform=tf;$('#'+id).style.filter=fl}
 }
-function selectTool(value){if(working)return;tool=value;render();clearResult();notify("Ready for "+(catalog[kind].find(x=>x[0]===value)||[null,null,value])[2]+".")}
-function chooseKind(value){if(working)return;kind=value;$$(".category").forEach(b=>{const active=b.dataset.kind===kind;b.classList.toggle("active",active);b.setAttribute("aria-selected",String(active))});tool=catalog[kind][0][0];$("#file").value="";render();clearResult();notify("Choose a file to begin.")}
-function fileChanged(){
-clearResult();const f=$("#file").files[0];updateUpload();
-if(sourceUrl)URL.revokeObjectURL(sourceUrl);sourceUrl=null;
-if(!f){notify("Choose a file.");return}
-if(f.size>45*1048576){notify("This file exceeds 45 MB.","error");return}
-sourceUrl=URL.createObjectURL(f);const el=document.createElement(kind==="photo"?"img":"video");el.src=sourceUrl;
-if(el.tagName==="VIDEO"){el.controls=true;el.playsInline=true;el.preload="metadata"}else el.alt="Source image";
-$("#media-output").replaceChildren(el);$("#media-output").hidden=false;$("#empty-state").hidden=true;$("#output-stage").textContent="SOURCE / PREVIEW";$("#output-info").innerHTML="SOURCE MEDIA <small>Process to enable download.</small>";notify("Media selected. Choose settings, then process.")
+function refresh(){
+let d=Math.max(1,duration||st.end);for(let name of ['start','end']){let el=$('#'+name+'Range');el.max=d;el.value=st[name];el.disabled=type==='photo'||!file}
+$('#startVal').textContent=st.start.toFixed(1)+' s';$('#endVal').textContent=st.end.toFixed(1)+' s';
+$('#trimInfo').textContent=fmt(st.start)+' — '+fmt(st.end);
+$('#clipDuration').textContent=type==='photo'?'PHOTO':fmt(Math.max(0,st.end-st.start));
+$('#timeLabel').textContent=fmt(st.start)+' / '+fmt(duration);applyPreview()
 }
-function sourceChanged(){const upload=$('input[name="source"]:checked')?.value==="upload";$("#library-select").hidden=upload;$("#audio-upload").hidden=!upload;$("#audio").disabled=!upload;$("#track").disabled=upload}
-async function submit(e){
-e.preventDefault();if(working)return;
-const f=$("#file").files[0];if(!f){notify("Upload your file first.","error");return}if(f.size>45*1048576){notify("Maximum file size is 45 MB.","error");return}
-const upload=tool==="add_audio"&&$('input[name="source"]:checked')?.value==="upload";
-if(upload&&!$("#audio").files.length){notify("Choose an audio file.","error");return}
-if(tool==="add_audio"&&!upload&&!$("#track").value){notify("Choose a music track.","error");return}
-const fd=new FormData(form);fd.set("operation",tool);
-if(tool==="add_audio"){if(upload)fd.delete("track");else fd.delete("audio");fd.set("mix",$("#mix").checked?"true":"false")}else{fd.delete("audio");fd.delete("track");fd.delete("mix")}
-fd.set("smooth",$('[name="smooth"]')?.checked?"true":"false");
-working=true;$("#submit").disabled=true;$("#submit").textContent="PROCESSING MEDIA…";$("#output-stage").textContent="RENDERING / …";notify("Processing your file. Keep this tab open.");
-try{
- const response=await fetch("/api/edit",{method:"POST",body:fd});
- if(!response.ok){let message="Could not process the file ("+response.status+").";try{const data=await response.json();message=data.detail||message}catch{}throw new Error(message)}
- const blob=await response.blob();if(!blob.size)throw new Error("Output file was empty.");
- clearResult();resultUrl=URL.createObjectURL(blob);
- const mime=blob.type;const el=document.createElement(mime.startsWith("video")?"video":mime.startsWith("audio")?"audio":"img");el.src=resultUrl;
- if(el.tagName==="IMG")el.alt="Edited image";else{el.controls=true;el.preload="metadata";if(el.tagName==="VIDEO")el.playsInline=true}
- $("#media-output").append(el);$("#media-output").hidden=false;$("#empty-state").hidden=true;
- const ext=mime.includes("video/mp4")?".mp4":mime.includes("audio/mpeg")?".mp3":mime.includes("image/gif")?".gif":mime.includes("image/png")?".png":".jpg";
- const link=$("#download");link.href=resultUrl;link.download="asd-motion-"+tool+ext;link.classList.remove("disabled");link.removeAttribute("aria-disabled");
- $("#output-info").innerHTML=(blob.size/1048576).toFixed(2)+' MB <small>Ready to download.</small>';$("#output-stage").textContent="READY / 02";notify("Edit complete. Tap Download to save.","success");
- $("#media-output").scrollIntoView({behavior:"smooth",block:"nearest"})
-}catch(err){notify(err.message||"Processing failed.","error");$("#output-stage").textContent="FAILED / RETRY"}
-finally{working=false;$("#submit").disabled=false;$("#submit").innerHTML='✦ &nbsp; PROCESS MEDIA <span>↗</span>'}
+function chooseFile(f){
+if(!f)return;let image=/\.(jpe?g|png|webp)$/i.test(f.name),video=/\.(mp4|mov|webm|mkv)$/i.test(f.name);
+if(!image&&!video){toast('Unsupported media file');return}if(f.size>40*1048576){toast('Maximum media size 40MB');return}
+if(sourceUrl)URL.revokeObjectURL(sourceUrl);sourceUrl=URL.createObjectURL(f);file=f;type=image?'photo':'video';st={...initial};duration=0;undo=[];redo=[];
+$('#video').pause();$('#video').hidden=image;$('#photo').hidden=!image;$('#emptyState').hidden=true;
+$('#modeTitle').textContent=image?'Photo Editor':'Video Editor';$('#canvasMode').textContent=image?'PHOTO':'VIDEO';$('#trackName').textContent=f.name;
+$('#mediaInfo').textContent=(f.size/1048576).toFixed(1)+' MB · '+(image?'PHOTO':'VIDEO');
+if(image){$('#photo').src=sourceUrl;refresh()}else{
+let v=$('#video');v.src=sourceUrl;v.load();v.onloadedmetadata=()=>{duration=Number.isFinite(v.duration)?v.duration:0;st.end=Math.min(45,Math.max(.1,duration||15));refresh();if(duration>45)toast('Trim the video to 45 seconds or less')};}
+refresh();panel('media')
 }
-async function music(query=""){
- try{const response=await fetch("/api/music?q="+encodeURIComponent(query));if(!response.ok)throw Error("Music library unavailable.");const results=await response.json();if(!Array.isArray(results))throw Error("Invalid music response.");if(!query){tracks=results;$("#track").replaceChildren();for(const t of tracks){const opt=document.createElement("option");opt.value=t.id;opt.textContent=t.title+" · "+t.genre;$("#track").append(opt)}}displayMusic(results)}
- catch(err){$("#music-list").textContent=err.message}
+async function exportFile(operation){
+if(busy)return;if(!file){toast('Import a file first');$('#fileInput').click();return}
+if(operation==='extractAudio'&&type!=='video'){toast('Audio extraction requires video');return}
+if(type==='video'&&st.end<=st.start){toast('OUT must be after IN');return}
+busy=true;$('#busy').classList.remove('hidden');$('#exportBtn').disabled=true;
+try{let form=new FormData();form.append('file',file);form.append('kind',type);form.append('operation',operation);
+for(let [k,v] of Object.entries(st))form.append(k,String(v));
+if(audio)form.append('audio',audio);else if(track)form.append('track',track);
+let response=await fetch('/api/render',{method:'POST',body:form});if(!response.ok){let j={};try{j=await response.json()}catch{}throw Error(j.error||'Export failed ('+response.status+')')}
+let blob=await response.blob();if(resultUrl)URL.revokeObjectURL(resultUrl);resultUrl=URL.createObjectURL(blob);
+let ext=operation==='extractAudio'?'mp3':type==='photo'?st.imageFormat:'mp4';
+let anchor=$('#downloadFile');anchor.href=resultUrl;anchor.download='ASD-Motion-Lab-'+Date.now()+'.'+ext;
+let el=document.createElement(type==='photo'?'img':operation==='extractAudio'?'audio':'video');el.src=resultUrl;
+if(el.tagName!=='IMG'){el.controls=true;el.playsInline=true}else el.alt='Edited photo';
+$('#resultPreview').replaceChildren(el);
+$('#resultText').textContent=operation==='extractAudio'?'Your extracted MP3 is ready.':type==='photo'?'Your edited photo is ready.':'Your video export is ready.';
+$('#resultOverlay').classList.remove('hidden');toast('Export complete');
+}catch(e){toast(e.message||'Export failed')}finally{busy=false;$('#busy').classList.add('hidden');$('#exportBtn').disabled=false}
 }
-function play(t){$("#music-player").src=t.url;$("#music-player").play().catch(()=>notify("Tap Play in the audio player to preview."));notify("Previewing "+t.title)}
-function addTrack(t){chooseKind("audio");selectTool("add_audio");$("#track").value=t.id;$('input[name="source"][value="library"]').checked=true;sourceChanged();$("#editor").scrollIntoView({behavior:"smooth"});notify(t.title+" selected. Upload a video to add this music.","success")}
-function displayMusic(results){
-const root=$("#music-list");root.replaceChildren();
-if(results.length===0){const p=document.createElement("p");p.className="loading";p.textContent="No matching music. Try a genre.";root.append(p);return}
-for(const t of results){
- const card=document.createElement("article");card.className="music-card";const symbol=document.createElement("div");symbol.className="music-icon";symbol.textContent="♫";
- const desc=document.createElement("div");desc.className="music-text";const name=document.createElement("strong");name.textContent=t.title;const meta=document.createElement("span");meta.textContent=t.genre+" · "+t.bpm+" BPM · 16 seconds";desc.append(name,meta);
- const preview=document.createElement("button");preview.type="button";preview.textContent="▶";preview.setAttribute("aria-label","Preview "+t.title);preview.addEventListener("click",()=>play(t));
- const add=document.createElement("button");add.type="button";add.textContent="+ Add";add.addEventListener("click",()=>addTrack(t));card.append(symbol,desc,preview,add);root.append(card)
-}}
-$$(".category").forEach(b=>b.addEventListener("click",()=>chooseKind(b.dataset.kind)));
-$("#file").addEventListener("change",fileChanged);$("#edit-form").addEventListener("submit",submit);
-$$('input[name="source"]').forEach(b=>b.addEventListener("change",sourceChanged));
-$("#listen-selected").addEventListener("click",()=>{const t=tracks.find(x=>x.id===$("#track").value);if(t)play(t)});
-let searchTimer;$("#music-search").addEventListener("input",e=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>music(e.target.value.trim()),220)});
-const drop=$("#drop");
-["dragenter","dragover"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add("drag")}));
-["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove("drag")}));
-drop.addEventListener("drop",e=>{const f=e.dataTransfer?.files?.[0];if(!f)return;const dt=new DataTransfer();dt.items.add(f);$("#file").files=dt.files;fileChanged()});
-drop.addEventListener("keydown",e=>{if(e.target===drop&&(e.key==="Enter"||e.key===" ")){e.preventDefault();$("#file").click()}});
-chooseKind("video");sourceChanged();music();
+$('#fileInput').onchange=e=>chooseFile(e.target.files?.[0]);$('#audioInput').onchange=e=>{let f=e.target.files?.[0];if(!f)return;if(f.size>12*1048576)return toast('Audio max 12MB');audio=f;track='';$('#audioTrackName').textContent='♫ '+f.name;panel('audio');toast('Added your audio')};
+$('#uploadBtn').onclick=$('#newMedia').onclick=()=>$('#fileInput').click();$('#exportBtn').onclick=()=>exportFile('video');
+$('#resetBtn').onclick=()=>{history();st={...initial,end:type==='video'?Math.min(45,duration||15):15};track='';audio=null;refresh();panel(screen);toast('Settings reset')};
+$('#undoBtn').onclick=()=>{if(!undo.length)return toast('Nothing to undo');redo.push({...st,track});let prev=undo.pop();st={...initial,...prev};track=prev.track||'';refresh();panel(screen)};
+$('#redoBtn').onclick=()=>{if(!redo.length)return toast('Nothing to redo');undo.push({...st,track});let next=redo.pop();st={...initial,...next};track=next.track||'';refresh();panel(screen)};
+$$('[data-panel]').forEach(b=>b.onclick=()=>panel(b.dataset.panel));$('#openAudio').onclick=()=>{panel('audio');if(innerWidth<790)$('.inspector').scrollIntoView({behavior:'smooth'})};
+$('#fitBtn').onclick=()=>{let e=$('#stage');if(document.fullscreenElement)document.exitFullscreen();else e.requestFullscreen?.().catch(()=>toast('Fullscreen unavailable'))};
+$('#playBtn').onclick=()=>{if(type==='photo')return toast('Photo preview');let v=$('#video');if(v.paused){v.play().catch(()=>toast('Unable to play'));$('#playBtn').textContent='Ⅱ'}else{v.pause();$('#playBtn').textContent='▶'}};
+$('#video').onpause=()=>$('#playBtn').textContent='▶';
+$('#video').ontimeupdate=()=>{let v=$('#video');$('#timeLabel').textContent=fmt(v.currentTime)+' / '+fmt(duration);if(v.currentTime>=st.end+.1){v.pause();v.currentTime=st.start}};
+$('#startRange').oninput=e=>{st.start=Math.min(Number(e.target.value),st.end-.1);$('#video').currentTime=st.start;refresh()};
+$('#endRange').oninput=e=>{st.end=Math.max(Number(e.target.value),st.start+.1);refresh()};
+$('#startRange').onchange=$('#endRange').onchange=history;
+for(let id of ['closeResult','backEditor'])$('#'+id).onclick=()=>$('#resultOverlay').classList.add('hidden');
+$('#resultOverlay').onclick=e=>{if(e.target.id==='resultOverlay')$('#resultOverlay').classList.add('hidden')};
+document.onkeydown=e=>{if(e.key==='Escape')$('#resultOverlay').classList.add('hidden');if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();$('#undoBtn').click()}};
+fetch('/api/music').then(r=>r.json()).then(j=>{tracks=j.tracks||[];if(screen==='audio')panel('audio')}).catch(()=>toast('Music list unavailable'));
+panel('media');refresh();
 })();

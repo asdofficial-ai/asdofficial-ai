@@ -1,116 +1,59 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#101413">
-  <meta name="description" content="ASD Motion Lab: free creative editor for video, photo, audio and original music.">
-  <title>ASD Motion Lab | Create. Edit. Export.</title>
-  <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
-  <link rel="stylesheet" href="/static/style.css">
-  <script src="/static/app.js" defer></script>
-</head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0d1015"><title>ASD Motion Lab — Creative Editor</title><link rel="stylesheet" href="/static/styles.css"></head>
 <body>
-<div class="shell">
+<div class="app">
   <header class="topbar">
-    <a class="identity" href="/" aria-label="ASD Motion Lab home">
-      <span class="monogram">A<span class="mini-star">✳</span></span>
-      <span>ASD <strong>MOTION LAB</strong></span>
-    </a>
-    <div class="right-status"><span class="status-dot"></span> STUDIO ONLINE <span class="version">/ BETA 1.2</span></div>
+    <div class="brand"><span class="brandmark">A<span>◆</span></span><div><strong>ASD <em>MOTION</em></strong><small>CREATIVE LAB / V2</small></div></div>
+    <div class="top-center"><span class="on-indicator"></span> PRO EDITOR <span class="tiny-tag">BETA</span></div>
+    <div class="top-actions">
+      <button id="undoBtn" class="icon-btn" title="Undo" aria-label="Undo">↶</button>
+      <button id="redoBtn" class="icon-btn" title="Redo" aria-label="Redo">↷</button>
+      <button id="resetBtn" class="btn flat">Reset</button>
+      <button id="exportBtn" class="btn primary"><span>⇩</span> Export</button>
+    </div>
   </header>
-  <aside class="sidebar">
-    <div class="sidebar-caption">WORKSPACE</div>
-    <a href="#editor" class="navlink active">◈ <span>Studio</span></a>
-    <a href="#music" class="navlink">♫ <span>Music library</span></a>
-    <a href="#features" class="navlink">▦ <span>Editing tools</span></a>
-    <div class="side-panel"><span class="mini-label">ASD INDUSTRY PRESENTS</span><strong>Create without compromise.</strong><p>Your edits. Your creativity. No signup, subscription, or generative AI.</p></div>
-    <div class="side-bottom">Original music • Temporary uploads</div>
-  </aside>
-  <main>
-    <section class="hero">
-      <div class="hero-copy">
-        <div class="micro"><span class="micro-mark">✳</span> YOUR CREATIVE WORKSPACE</div>
-        <h1>CRAFT THE<br><em>IMPOSSIBLE<span class="stop">.</span></em></h1>
-        <p>Sharper edits. Better rhythm. Full control. Edit video, photography and sound — directly from your browser.</p>
-        <div class="stats">
-          <span><b>24+</b> tool variations</span><span class="vertical"></span>
-          <span><b>8</b> original tracks</span><span class="vertical"></span>
-          <span><b>0</b> subscriptions</span>
+  <div class="workspace">
+    <nav class="toolrail" aria-label="Editing tools">
+      <button data-panel="media" class="rail-btn active"><span>▣</span> Media</button>
+      <button data-panel="transform" class="rail-btn"><span>⛶</span> Transform</button>
+      <button data-panel="color" class="rail-btn"><span>◐</span> Adjust</button>
+      <button data-panel="speed" class="rail-btn"><span>⏩</span> Speed</button>
+      <button data-panel="text" class="rail-btn"><span>𝐓</span> Text</button>
+      <button data-panel="audio" class="rail-btn"><span>♫</span> Audio</button>
+      <button data-panel="export" class="rail-btn"><span>⇩</span> Export</button>
+    </nav>
+    <main class="editor">
+      <div class="edit-title"><div><span class="breadcrumb">WORKSPACE <span> / </span> <b id="modeTitle">New project</b></span><h1>Make every frame count<span>.</span></h1></div><button class="chip" id="newMedia">＋ Add media</button></div>
+      <div class="stage-shell">
+        <div class="stage-top"><div class="stage-label">CANVAS <span class="dot"></span> <span id="canvasMode">NO MEDIA</span></div><span class="resolution">ORIGINAL PREVIEW</span></div>
+        <div class="stage" id="stage">
+          <div id="emptyState" class="empty-state"><span class="empty-graphic">✧</span><h2>Your canvas is waiting.</h2><p>Bring your photos and clips to life with studio-grade editing tools.</p><button id="uploadBtn" class="btn primary">＋ Import media</button><span class="format-note">MP4 · MOV · WEBM · JPG · PNG · WEBP</span></div>
+          <video id="video" controls playsinline preload="metadata" hidden></video>
+          <img id="photo" alt="Uploaded photo preview" hidden>
+          <div id="busy" class="busy hidden"><div class="spinner"></div><h3>Rendering your edit</h3><p id="busyInfo">Applying effects and preparing the file.</p></div>
         </div>
+        <div class="transport"><div class="transport-left"><button id="playBtn" class="square-btn">▶</button><span id="timeLabel">00:00 / 00:00</span></div><div class="transport-right"><span class="quality-tag" id="mediaInfo">No media loaded</span><button id="fitBtn" class="square-btn" title="Fit preview">⛶</button></div></div>
       </div>
-      <div class="hero-visual" aria-hidden="true">
-        <div class="frame frame-back"></div><div class="frame frame-mid"></div>
-        <div class="frame frame-front"><div class="art-orbit"></div><div class="center-symbol">ASD</div></div>
-        <div class="visual-label">CREATE · TRANSFORM · EXPORT</div>
-      </div>
-    </section>
-    <section id="editor" class="editor-section">
-      <div class="section-line"><div><div class="eyebrow">01 / EDITOR</div><h2>Creative studio</h2></div><span class="section-aside"><span class="status-dot"></span> Browser-ready</span></div>
-      <div class="editor-grid">
-        <div class="editor-controls">
-          <div class="panel-top"><strong>Start editing</strong><span class="panel-index">INPUT / 01</span></div>
-          <div class="control-content">
-            <div class="category-tabs" role="tablist" aria-label="Editing category">
-              <button class="category active" type="button" data-kind="video" role="tab" aria-selected="true">▣ Video</button>
-              <button class="category" type="button" data-kind="audio" role="tab" aria-selected="false">♫ Audio</button>
-              <button class="category" type="button" data-kind="photo" role="tab" aria-selected="false">◐ Photo</button>
-            </div>
-            <div class="control-label">CHOOSE A TOOL</div>
-            <div id="tool-grid" class="tool-choices" role="group" aria-label="Editing tools"></div>
-            <form id="edit-form" novalidate>
-              <div class="control-label spaced">UPLOAD YOUR MEDIA</div>
-              <div id="drop" class="drop" role="button" tabindex="0" aria-label="Choose a video or photo">
-                <div class="upload-mark">⇧</div>
-                <strong id="upload-title">Tap or drop a file here</strong>
-                <span id="upload-subtitle">MP4, MOV, WebM, MKV · Up to 45 MB</span>
-                <input id="file" name="file" type="file" required aria-label="Primary media file">
-              </div>
-              <div id="settings" class="settings"></div>
-              <div id="music-choice" hidden>
-                <div class="control-label spaced">AUDIO SOURCE</div>
-                <div class="music-source-choice">
-                  <label class="radio-label"><input type="radio" name="source" value="library" checked> Music library</label>
-                  <label class="radio-label"><input type="radio" name="source" value="upload"> Upload audio</label>
-                </div>
-                <div id="library-select"><label for="track">Selected track</label><select id="track" name="track"></select><button type="button" class="listen-selected" id="listen-selected">▶ Preview selected music</button></div>
-                <div id="audio-upload" hidden><label for="audio">Your audio file (max 15 MB)</label><input id="audio" name="audio" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac"></div>
-                <label class="checkline"><input id="mix" type="checkbox" name="mix"> Mix new audio with original sound</label>
-              </div>
-              <button type="submit" class="primary" id="submit">✦ &nbsp; PROCESS MEDIA <span>↗</span></button>
-              <div class="notification" role="status" aria-live="polite" id="notification">Choose a tool and upload your file to begin.</div>
-            </form>
-          </div>
-        </div>
-        <div class="editor-preview">
-          <div class="panel-top"><strong>Output preview</strong><span class="panel-index" id="output-stage">OUTPUT / 02</span></div>
-          <div class="preview-area">
-            <div class="empty-state" id="empty-state"><div class="preview-icon">◈</div><h3>The next frame starts here.</h3><p>Process a file to preview and download your creation.</p><div class="preview-stripe">ASD MOTION LAB / EXPORT STUDIO</div></div>
-            <div id="media-output" hidden></div>
-          </div>
-          <div class="preview-footer">
-            <div class="output-info" id="output-info">No output yet <small>Results stay in this tab, not on the server.</small></div>
-            <a href="#" class="download disabled" id="download" aria-disabled="true">↓ Download</a>
-          </div>
-        </div>
-      </div>
-    </section>
-    <section class="music-section" id="music">
-      <div class="section-line"><div><div class="eyebrow">02 / SOUND DESIGN</div><h2>The sound vault</h2></div><span class="section-aside">8 ORIGINAL LOOPS</span></div>
-      <p class="section-description">Search, preview and add original instrumental loops to your edits. These are generated compositions, not chart songs.</p>
-      <div class="music-search"><span>⌕</span><input id="music-search" type="search" placeholder="Search music, genre, or mood..." aria-label="Search music"></div>
-      <div class="music-list" id="music-list"><div class="loading">Loading your music library…</div></div>
-      <audio id="music-player" controls preload="none"></audio>
-    </section>
-    <section id="features" class="features-section">
-      <div class="section-line"><div><div class="eyebrow">03 / YOUR TOOLBOX</div><h2>Made for creators</h2></div><span class="section-aside">PHOTO · VIDEO · AUDIO</span></div>
-      <div class="feature-grid">
-        <article class="feature-card"><span class="feature-ico">⇄</span><strong>Motion control</strong><p>Mirror and flip, crop, trim, speed, reverse, export FPS and adjust aspect ratios.</p></article>
-        <article class="feature-card"><span class="feature-ico">♫</span><strong>Audio workshop</strong><p>Extract MP3 audio, mute, adjust volume, add your own track or select original music.</p></article>
-        <article class="feature-card"><span class="feature-ico">◐</span><strong>Photo lab</strong><p>Enhance, resize, rotate, mirror, crop, apply color looks, or overlay captions.</p></article>
-      </div>
-    </section>
-    <footer>ASD MOTION LAB · BUILT FOR CREATORS. All edits run on a temporary server workspace. Uploaded files are deleted after each export. No accounts or AI credits required. Files up to 45 MB. Videos up to 65 seconds; some tools have shorter limits. 250 FPS is frame conversion, not 250-FPS capture. Original music loops are 16 seconds and loop when applied. This beta is not a complete CapCut replacement.</footer>
-  </main>
+      <section class="timeline">
+        <div class="timeline-head"><div><span class="section-kicker">TIMELINE</span><span class="timeline-detail">Single-clip editor</span></div><div><span id="trimInfo">00:00 — 00:00</span></div></div>
+        <div id="clipTrack" class="clip-track"><span class="track-icon">▣</span><span id="trackName">Import a video or image to begin</span><span id="clipDuration">00:00</span></div>
+        <div class="range-wrap"><div class="range-names"><label for="startRange">IN <b id="startVal">0.0 s</b></label><label for="endRange">OUT <b id="endVal">0.0 s</b></label></div><input id="startRange" type="range" min="0" max="30" step=".1" value="0"><input id="endRange" type="range" min="0" max="30" step=".1" value="30"></div>
+        <div class="audio-track"><span>♫</span><span id="audioTrackName">Audio track · none selected</span><button id="openAudio" class="smalllink">Edit ↗</button></div>
+      </section>
+      <div class="privacy-note">⬡ &nbsp; Your media is processed temporarily on the server and deleted after export. Upload only content you own or can edit.</div>
+    </main>
+    <aside class="inspector">
+      <div class="inspector-head"><span>EDITOR CONTROLS</span><strong id="panelTitle">Media</strong><p id="panelDesc">Load a photo or a clip to start.</p></div>
+      <div id="panelBody" class="panel-content"></div>
+      <div class="inspector-foot"><div class="tip-dot">✦</div><div><strong>Creator tip</strong><p>Exporting creates a new file. Your original stays untouched.</p></div></div>
+    </aside>
+  </div>
+  <div class="bottom"><span>ASD MOTION LAB</span><span>EDIT • REFINE • EXPORT</span><span>NO AI CREDITS REQUIRED</span></div>
 </div>
+<input type="file" id="fileInput" accept="video/mp4,video/quicktime,video/webm,video/x-matroska,image/png,image/jpeg,image/webp" hidden>
+<input type="file" id="audioInput" accept=".mp3,.wav,.m4a,.aac,.ogg,audio/*" hidden>
+<audio id="musicPlayer" controls hidden></audio>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="resultOverlay" class="result-overlay hidden"><div class="result-box"><button id="closeResult" class="close">&times;</button><div class="result-symbol">✓</div><h2>Your export is ready.</h2><p id="resultText">Save the edited file to your device.</p><div id="resultPreview"></div><a id="downloadFile" class="btn primary" download>⇩ Download your file</a><button id="backEditor" class="btn flat">Back to editor</button></div></div>
+<script src="/static/app.js" defer></script>
 </body></html>
