@@ -1,55 +1,24 @@
-'use strict';
-const http = require('node:http');
-const {randomUUID, createHash, timingSafeEqual} = require('node:crypto');
-const {Pool} = require('pg');
-const PORT = Number(process.env.PORT) || 10000;
-const DATABASE_URL = process.env.DATABASE_URL;
-if(!DATABASE_URL){ console.error('Missing DATABASE_URL'); process.exit(1); }
-const pool = new Pool({connectionString:DATABASE_URL,ssl:{rejectUnauthorized:false},max:5,connectionTimeoutMillis:10000});
-const ORIGINS = new Set(['https://asd-forge-v2.onrender.com','https://asd-forge-v2.onrender.com/','https://asd-forge-launchpad.onrender.com','http://localhost:8080','http://127.0.0.1:8080']);
-const rate = new Map();
-function quota(ip){const now=Date.now();const value=rate.get(ip)||{start:now,count:0};if(now-value.start>3600000){value.start=now;value.count=0}value.count++;rate.set(ip,value);return value.count<=30;}
-function hash(value){return createHash('sha256').update(value).digest('hex')}
-function eq(a,b){const x=Buffer.from(String(a)),y=Buffer.from(String(b));return x.length===y.length&&timingSafeEqual(x,y)}
-const schema=`CREATE TABLE IF NOT EXISTS public_services (
- id UUID PRIMARY KEY, owner_key_hash VARCHAR(64) NOT NULL,
- title VARCHAR(100) NOT NULL, description VARCHAR(600) NOT NULL,
- category VARCHAR(40) NOT NULL, price_minor BIGINT NOT NULL CHECK (price_minor>0 AND price_minor<=999999999999),
- currency VARCHAR(3) NOT NULL DEFAULT 'NGN', delivery VARCHAR(50) NOT NULL DEFAULT '',
- seller VARCHAR(100) NOT NULL, phone VARCHAR(16) NOT NULL,
- is_public BOOLEAN NOT NULL DEFAULT TRUE,
- created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());
- CREATE INDEX IF NOT EXISTS public_services_updated ON public_services(updated_at DESC);
- CREATE INDEX IF NOT EXISTS public_services_category ON public_services(category);`;
-function headers(origin){const ok=ORIGINS.has(origin)?origin:null;return {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Access-Control-Allow-Methods':'GET,POST,PATCH,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization',...(ok?{'Access-Control-Allow-Origin':ok,'Vary':'Origin'}:{})};}
-function reply(res,code,body,origin){res.writeHead(code,headers(origin));res.end(JSON.stringify(body));}
-async function body(req){let chunks=[],size=0;for await(const chunk of req){size+=chunk.length;if(size>12000)throw Error('Payload too large');chunks.push(chunk)}return JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');}
-function sanitize(raw){const data=raw||{};const title=String(data.title||'').trim(),description=String(data.description||'').trim(),category=String(data.category||'').trim(),seller=String(data.seller||'').trim(),delivery=String(data.delivery||'').trim();const phone=String(data.phone||'').replace(/\D/g,'');const price=Number(data.price);const currency=String(data.currency||'NGN').toUpperCase();if(title.length<3||title.length>100||description.length<15||description.length>600||category.length<2||category.length>40||seller.length<2||seller.length>100||delivery.length>50||phone.length<7||phone.length>15||!Number.isFinite(price)||price<=0||price>9999999999||!['NGN','USD','GBP','EUR','GHS','KES','ZAR'].includes(currency))throw Error('Invalid offer fields');return {title,description,category,seller,delivery,phone,currency,priceMinor:Math.round(price*100)};}
-function publicOffer(r){return {id:r.id,title:r.title,description:r.description,category:r.category,seller:r.seller,delivery:r.delivery,phone:r.phone,currency:r.currency,price:Number(r.price_minor)/100,created:r.created_at,updated:r.updated_at};}
-async function handler(req,res){const origin=req.headers.origin||'';if(req.method==='OPTIONS'){res.writeHead(204,headers(origin));res.end();return}
- const u=new URL(req.url,'http://localhost');if(req.method==='GET'&&u.pathname==='/health'){const result=await pool.query('SELECT 1');return reply(res,200,{ok:!!result.rowCount,service:'asd-forge-marketplace',payments:'disabled'},origin)}
- if(req.method==='GET'&&u.pathname==='/v1/payment/status')return reply(res,200,{enabled:false,message:'Gateway integration is not activated. No deposits, escrow, refunds or payouts available.',proposedAcceptedFeePercent:2,proposedRefundFeePercent:1},origin);
- if(u.pathname.startsWith('/v1/payments/') || u.pathname==='/v1/payments')return reply(res,503,{error:'Payments are disabled until a licensed provider and secure verified webhooks are configured.'},origin);
- if(req.method==='GET'&&u.pathname==='/v1/services'){
- const q=(u.searchParams.get('q')||'').trim().slice(0,90),category=(u.searchParams.get('category')||'').trim().slice(0,40),sort=u.searchParams.get('sort')||'recent';const params=[];let where='is_public = TRUE';if(q){params.push(`%${q}%`);where+=` AND (title ILIKE $${params.length} OR description ILIKE $${params.length} OR category ILIKE $${params.length} OR seller ILIKE $${params.length})`;}if(category&&category!=='All'){params.push(category);where+=` AND category = $${params.length}`}
- const order=sort==='price_asc'?'price_minor ASC,updated_at DESC':sort==='price_desc'?'price_minor DESC,updated_at DESC':'updated_at DESC';
- const result=await pool.query(`SELECT id,title,description,category,price_minor,currency,delivery,seller,phone,created_at,updated_at FROM public_services WHERE ${where} ORDER BY ${order} LIMIT 100`,params);
- return reply(res,200,{services:result.rows.map(publicOffer),count:result.rows.length},origin)}
- const match=u.pathname.match(/^\/v1\/services\/([0-9a-f-]{36})$/i);
- if(req.method==='GET'&&match){const r=await pool.query('SELECT * FROM public_services WHERE id=$1 AND is_public=TRUE',[match[1]]);return r.rowCount?reply(res,200,{service:publicOffer(r.rows[0])},origin):reply(res,404,{error:'Not found'},origin)}
- if(req.method==='POST'&&u.pathname==='/v1/services'){
- const ip=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0];if(!quota(ip))return reply(res,429,{error:'Rate limit reached. Try again later.'},origin);
- const key=String(req.headers.authorization||'').replace(/^Bearer /i,'');if(!/^[0-9a-f-]{36}$/.test(key))return reply(res,401,{error:'Seller publishing key required.'},origin);
- const b=await body(req);if(b.consent!==true)return reply(res,400,{error:'Confirm you agree to publish your offer and contact information.'},origin);
- const p=sanitize(b);const uuid=randomUUID();const result=await pool.query('INSERT INTO public_services(id,owner_key_hash,title,description,category,price_minor,currency,delivery,seller,phone) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',[uuid,hash(key),p.title,p.description,p.category,p.priceMinor,p.currency,p.delivery,p.seller,p.phone]);return reply(res,201,{service:publicOffer(result.rows[0])},origin)}
- if(match&&['PATCH','DELETE'].includes(req.method)){
- const key=String(req.headers.authorization||'').replace(/^Bearer /i,'');const r=await pool.query('SELECT owner_key_hash FROM public_services WHERE id=$1',[match[1]]);if(!r.rowCount)return reply(res,404,{error:'Not found'},origin);
- if(!/^[0-9a-f-]{36}$/.test(key)||!eq(hash(key),r.rows[0].owner_key_hash))return reply(res,403,{error:'Not authorized to modify listing'},origin);
- if(req.method==='DELETE'){await pool.query('DELETE FROM public_services WHERE id=$1',[match[1]]);return reply(res,200,{deleted:true},origin)}
- const b=await body(req),p=sanitize(b);const out=await pool.query('UPDATE public_services SET title=$1,description=$2,category=$3,price_minor=$4,currency=$5,delivery=$6,seller=$7,phone=$8,updated_at=now() WHERE id=$9 RETURNING *',[p.title,p.description,p.category,p.priceMinor,p.currency,p.delivery,p.seller,p.phone,match[1]]);return reply(res,200,{service:publicOffer(out.rows[0])},origin);
- }
- return reply(res,404,{error:'Unknown route'},origin);
-}
-const server=http.createServer((req,res)=>Promise.resolve(handler(req,res)).catch(e=>{console.error('API error',e.message);const code=e.message==='Payload too large'?413:e.message==='Invalid offer fields'?400:500;reply(res,code,{error:code===500?'Internal server error':e.message},req.headers.origin||'')}));
-if(require.main===module){pool.query(schema).then(()=>server.listen(PORT,'0.0.0.0',()=>console.log('Catalog API listening',PORT))).catch(e=>{console.error('Database unavailable',e.message);process.exit(1)});}
-module.exports={handler,sanitize,publicOffer,hash,eq,server,pool};
+"use strict";
+const http=require('node:http'),{randomUUID,createHash,timingSafeEqual}=require('node:crypto'),{Pool}=require('pg');
+if(!process.env.DATABASE_URL){console.error('Missing DATABASE_URL');process.exit(1)}
+const dbUrl=new URL(process.env.DATABASE_URL);dbUrl.searchParams.delete('sslmode');
+const pool=new Pool({connectionString:dbUrl.toString(),ssl:{rejectUnauthorized:true},max:5,connectionTimeoutMillis:10000});
+const {configure:configurePayments}=require('./payments');
+const origins=new Set(['https://asd-forge-v2.onrender.com','https://asd-forge-launchpad.onrender.com','http://localhost:8080','http://127.0.0.1:8080']);
+const limits=new Map();function rate(ip){let r=limits.get(ip)||{until:Date.now()+3600000,count:0};if(r.until<Date.now()){r={until:Date.now()+3600000,count:0}}r.count++;limits.set(ip,r);return r.count<=30}
+const hash=s=>createHash('sha256').update(s).digest('hex');function same(a,b){let x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y)}
+const ddl=`CREATE TABLE IF NOT EXISTS public_services(id UUID PRIMARY KEY,owner_hash CHAR(64) NOT NULL,title VARCHAR(100) NOT NULL,description VARCHAR(600) NOT NULL,category VARCHAR(40) NOT NULL,price_minor BIGINT NOT NULL CHECK(price_minor>0),currency VARCHAR(3) NOT NULL,delivery VARCHAR(50) NOT NULL,seller VARCHAR(100) NOT NULL,phone VARCHAR(15) NOT NULL,created_at TIMESTAMPTZ DEFAULT NOW(),updated_at TIMESTAMPTZ DEFAULT NOW());CREATE INDEX IF NOT EXISTS service_updated_index ON public_services(updated_at DESC);CREATE INDEX IF NOT EXISTS service_category_index ON public_services(category);`;
+function h(origin){return {'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Access-Control-Allow-Headers':'Content-Type,Authorization','Access-Control-Allow-Methods':'GET,POST,PATCH,DELETE,OPTIONS',...(origins.has(origin)?{'Access-Control-Allow-Origin':origin,'Vary':'Origin'}:{})}}
+function send(res,status,data,origin){res.writeHead(status,h(origin));res.end(JSON.stringify(data))}
+async function parse(req){let bufs=[],n=0;for await(const chunk of req){n+=chunk.length;if(n>12000)throw Error('Payload too large');bufs.push(chunk)}return JSON.parse(Buffer.concat(bufs).toString()||'{}')}
+function clean(b){let title=String(b.title||'').trim(),description=String(b.description||'').trim(),category=String(b.category||'').trim(),seller=String(b.seller||'').trim(),delivery=String(b.delivery||'').trim(),phone=String(b.phone||'').replace(/\D/g,''),currency=String(b.currency||'NGN'),price=Number(b.price);if(title.length<3||title.length>100||description.length<15||description.length>600||category.length<2||category.length>40||seller.length<2||seller.length>100||delivery.length>50||phone.length<7||phone.length>15||!['NGN','USD','GBP','EUR','GHS','KES','ZAR'].includes(currency)||!Number.isFinite(price)||price<=0||price>1e10)throw Error('Invalid service details');return {title,description,category,seller,delivery,phone,currency,minor:Math.round(price*100)}}
+const view=r=>({id:r.id,title:r.title,description:r.description,category:r.category,price:Number(r.price_minor)/100,currency:r.currency,delivery:r.delivery,seller:r.seller,phone:r.phone});
+const payments=configurePayments({pool,send});
+async function handler(req,res){let origin=req.headers.origin||'',u=new URL(req.url,'http://localhost');if(req.method==='OPTIONS'){res.writeHead(204,h(origin));return res.end()}if(req.method==='GET'&&u.pathname==='/health'){await pool.query('SELECT 1');return send(res,200,{ok:true,paymentsEnabled:false},origin)}
+if(u.pathname.startsWith('/v1/payments')||u.pathname.startsWith('/v1/orders')||u.pathname==='/v1/payment/status'){const handled=await payments.handle(req,res,u);if(handled!==false)return;}
+if(req.method==='GET'&&u.pathname==='/v1/services'){const params=[],q=(u.searchParams.get('q')||'').trim().slice(0,90),category=(u.searchParams.get('category')||'').trim().slice(0,40);let where='true';if(q){params.push('%'+q+'%');where+=` AND (title ILIKE $${params.length} OR description ILIKE $${params.length} OR category ILIKE $${params.length} OR seller ILIKE $${params.length})`}if(category&&category!=='All'){params.push(category);where+=` AND category=$${params.length}`}const sort=u.searchParams.get('sort'),order=sort==='price_asc'?'price_minor ASC':sort==='price_desc'?'price_minor DESC':'updated_at DESC';let r=await pool.query(`SELECT * FROM public_services WHERE ${where} ORDER BY ${order} LIMIT 100`,params);return send(res,200,{services:r.rows.map(view)},origin)}
+const match=u.pathname.match(/^\/v1\/services\/([0-9a-f-]{36})$/i);if(match&&req.method==='GET'){let r=await pool.query('SELECT * FROM public_services WHERE id=$1',[match[1]]);return send(res,r.rowCount?200:404,r.rowCount?{service:view(r.rows[0])}:{error:'Not found'},origin)}
+const token=String(req.headers.authorization||'').replace(/^Bearer /i,'');if(['POST','PATCH','DELETE'].includes(req.method)&&(u.pathname==='/v1/services'||match)){if(!/^[0-9a-f-]{36}$/.test(token))return send(res,401,{error:'Seller publishing key required'},origin);let id=match?.[1];if(id){let r=await pool.query('SELECT owner_hash FROM public_services WHERE id=$1',[id]);if(!r.rowCount)return send(res,404,{error:'Not found'},origin);if(!same(hash(token),r.rows[0].owner_hash))return send(res,403,{error:'Only the listing owner can change it'},origin)}if(req.method==='DELETE'){await pool.query('DELETE FROM public_services WHERE id=$1',[id]);return send(res,200,{deleted:true},origin)}if(req.method==='POST'&&!rate(String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0]))return send(res,429,{error:'Publishing limit reached'},origin);let data=await parse(req);if(req.method==='POST'&&data.consent!==true)return send(res,400,{error:'Consent to share your business name and phone publicly is required'},origin);let p=clean(data);if(req.method==='POST'){let r=await pool.query('INSERT INTO public_services(id,owner_hash,title,description,category,price_minor,currency,delivery,seller,phone) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',[randomUUID(),hash(token),p.title,p.description,p.category,p.minor,p.currency,p.delivery,p.seller,p.phone]);return send(res,201,{service:view(r.rows[0])},origin)}let r=await pool.query('UPDATE public_services SET title=$1,description=$2,category=$3,price_minor=$4,currency=$5,delivery=$6,seller=$7,phone=$8,updated_at=NOW() WHERE id=$9 RETURNING *',[p.title,p.description,p.category,p.minor,p.currency,p.delivery,p.seller,p.phone,id]);return send(res,200,{service:view(r.rows[0])},origin)}
+send(res,404,{error:'Not found'},origin)}
+const server=http.createServer((req,res)=>Promise.resolve(handler(req,res)).catch(e=>{console.error(e.message);const status=e.status||(['Payload too large','Invalid service details'].includes(e.message)?400:500);send(res,status,{error:status>=500?'Service unavailable':e.message},req.headers.origin||'')}));
+pool.query(ddl).then(()=>pool.query(payments.ddl)).then(()=>server.listen(process.env.PORT||10000,'0.0.0.0',()=>console.log('ASD Forge catalog ready'))).catch(e=>{console.error('Failed to start',e.message);process.exit(1)});
