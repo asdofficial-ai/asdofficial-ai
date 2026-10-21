@@ -1,38 +1,27 @@
-# ASD FORGE — Your business launchpad
+# ASD Forge — Version 3 beta
 
-## What it actually does
-ASD Forge is a **working, browser-based business starter app**, built in one HTML file. It helps independent service sellers create professional offer pages, share a direct WhatsApp sales link, manually track leads, issue PDF/printable invoices, and generate template-based client outreach.
+Business launchpad for solo freelancers and independent service providers.
 
-**No account, server, paid AI API, or subscription is needed** for this first version. All business workspace data is saved in your browser's localStorage. Export your JSON backup frequently.
+## Public experience
+- Landing page at `/` with one call-to-action at the bottom; local signup and app at `/app/`.
+- Dashboard, studio, customer pipeline, invoices, growth guidance.
+- Notifications with 2% proposed seller fee, 1% proposed refund fee, seller responsibilities, and payment limits.
+- Read-to-end Terms of Service requirement before service publishing.
+- Editable profile name, business name, interests, description, WhatsApp, photo gallery upload (local device only).
+- Local orders and delivered-work tracking, buyer acceptance or rejection (rejection requires reason), handoff via shareable reference.
+- Demonstration fee calculation: accepted order seller 98%; eligible refund buyer 99%.
 
-## Start immediately
-Open `index.html` in Chrome or another modern browser.
+## Payment architecture proposal (NOT IMPLEMENTED)
+1. Customer commits to order and pays at licensed PSP checkout or unique PSP-managed transfer account.
+2. Server verifies webhook, ties payment reference to order, and records actual custody/settlement status with the licensed partner.
+3. Service provider delivers and submits evidence. Buyer confirms acceptance or raises a dispute.
+4. On verified acceptance, service backend instructs payout, 2% platform fee (subject to PSP fees/tax).
+5. On **eligible** rejection after defined review criteria, backend requests a 99% partial refund to the original payment method, with planned 1% handling fee (subject to provider capability and disclosures). Never mark refunded before a verified PSP confirmation.
+6. Set clear deadlines, escalation for unresponsive parties and fraud checks; no client-generated reference is sufficient proof without authenticating their account on the server.
+7. Avoid taking funds into ASD Forge's own unlicensed wallet or a personal bank account. Partner terms, licensing, KYC, and legal review required.
 
-1. Go to **Settings** and enter your business name and WhatsApp number with country code (e.g. `2348012345678`).
-2. Go to **Launch studio**, type your offer and price, and click **Publish offer**.
-3. Click **Share** on the published offer.
-4. **Important:** Before customers can use the link, publish this `index.html` file to an HTTPS static website host. On a local `file://` URL, the generated link only works on the computer that opened the file.
-5. When someone messages you, add the lead manually under **Clients & deals**.
-6. Create an **Invoice**, then click **Print/PDF** to save or print it. Mark it paid only after confirming the payment independently.
+## Important limits
+All demo orders, decision references, accounts, photo uploads and notifications save **only in this browser**. They do not verify buyer identity, escrow funds, pay sellers, accept deposits or process refunds. No provider is connected. The beta signup is not secure cloud authentication and should not be used for financial data. Payment terms are proposed, not a binding promise for actual orders.
 
-## Deploy to a public URL (free options)
-- Upload the folder to a static hosting platform such as Netlify (Netlify Drop), Cloudflare Pages, GitHub Pages, or Render Static Sites.
-- Make sure `index.html` is published as the site root.
-- Open your HTTPS URL once, set up your business profile, and create your offers there.
-- Copy new share links *from the hosted app*, not from `file://`.
-
-## How shared offers work
-Each offer's text, price, WhatsApp number and payment URL (if present) is encoded **inside the URL fragment** (`#offer=...`). This means the offer page renders on another device without requiring a database. Previously shared links do not automatically update when you edit or delete a local offer; send your latest link again. Visitors can't place an order within ASD Forge: they request a service by messaging you on WhatsApp. Optional checkout buttons open *your own externally configured* payment link.
-
-## Limitations
-- **No backend or cloud account:** offers, clients, invoices, settings and revenue data are **not synchronized between browsers**.
-- **Not a payment processor:** payment confirmation is manual and invoices don't prove a real transaction.
-- **Not an AI model:** the sales assistant uses well-made message templates, not an AI API.
-- **No sales, millionaire or trillionaire guarantees.** The app helps with business operations; revenue comes only from actual customers.
-- Protect your device and backups. The local data may contain client contact details. Do not store card numbers, passwords or other sensitive financial data in notes.
-
-## Files
-- `index.html` — Complete standalone app; no external dependencies.
-- `README.md` — Setup and limitations.
-
-Created as an immediate, practical response to the "trillionaire by tomorrow" challenge.
+## Tests
+`node /mnt/data/test_forge_unit.js` for core fee/rejection/acceptance checks in development environment. JavaScript syntax parsed with Node 22. Full cross-device browser interaction tests are pending due browser tool restrictions.
