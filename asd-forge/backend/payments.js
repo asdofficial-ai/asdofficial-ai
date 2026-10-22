@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS forge_orders (
  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
  UNIQUE (buyer_email, service_id, request_key_hash)
 );
+ALTER TABLE forge_orders ADD COLUMN IF NOT EXISTS buyer_phone VARCHAR(15);
 CREATE INDEX IF NOT EXISTS forge_orders_service_idx ON forge_orders(service_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS forge_orders_status_idx ON forge_orders(status);
 CREATE TABLE IF NOT EXISTS forge_order_events(
@@ -84,19 +85,21 @@ function configure({pool,send}){
     if(!service)throw er('Service not found',404);
     checkSeller(req,service);
     const result=await pool.query('SELECT * FROM forge_orders WHERE service_id=$1 ORDER BY created_at DESC LIMIT 100',[id]);
-    return reply(req,res,200,{orders:result.rows.map(row=>({...view(row),buyerName:row.buyer_name,buyerEmail:row.buyer_email}))});
+    return reply(req,res,200,{orders:result.rows.map(row=>({...view(row),buyerName:row.buyer_name,buyerEmail:row.buyer_email,buyerPhone:row.buyer_phone||null}))});
   }
   if(m==='POST'&&p==='/v1/orders'){
    if(!limitOrder(req))throw er('Order creation rate limit reached',429);
-   const {data}=await body(req);const email=String(data.buyerEmail||'').trim().toLowerCase();const buyerName=String(data.buyerName||'').trim();const k=String(data.idempotencyKey||'');const sid=String(data.serviceId||'');
+   const {data}=await body(req);const email=String(data.buyerEmail||'').trim().toLowerCase();const buyerName=String(data.buyerName||'').trim();const k=String(data.idempotencyKey||'');const sid=String(data.serviceId||'');const rawPhone=String(data.buyerPhone||'').replace(/\D/g,'');const sharePhone=data.shareBuyerPhone===true;const buyerPhone=sharePhone?rawPhone:null;
    if(!validEmail(email)||buyerName.length<2||buyerName.length>100||!/^[0-9a-f-]{36}$/i.test(sid)||k.length<16||k.length>100)throw er('Valid customer, service ID, and idempotency key required');
+   if(data.buyerPhone&&!sharePhone)throw er('Customer WhatsApp sharing requires explicit consent');
+   if(sharePhone&&(buyerPhone.length<7||buyerPhone.length>15))throw er('Valid WhatsApp number with country code required');
    const service=(await pool.query('SELECT * FROM public_services WHERE id=$1',[sid])).rows[0];if(!service)throw er('Service not found',404);
    if(service.currency!=='NGN'||!Number.isSafeInteger(Number(service.price_minor))||Number(service.price_minor)<100)throw er('Only NGN services of at least ₦1 are supported');
    // Client does not supply price. Offer price frozen in the database at order creation.
    const keyHash=digest(k),previous=await pool.query('SELECT id FROM forge_orders WHERE buyer_email=$1 AND service_id=$2 AND request_key_hash=$3',[email,sid,keyHash]);
    if(previous.rowCount)return reply(req,res,409,{error:'Order already created for this idempotency key; use the original order link (buyer token cannot be reissued)'});
    const buyerToken=randomUUID(),id=randomUUID(),ref='asd_'+randomUUID().replace(/-/g,'');
-   const result=await pool.query(`INSERT INTO forge_orders (id,service_id,owner_hash,buyer_email,buyer_name,buyer_token_hash,request_key_hash,amount_minor,currency,payment_reference) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'NGN',$9) ON CONFLICT (buyer_email,service_id,request_key_hash) DO NOTHING RETURNING *`,[id,sid,service.owner_hash,email,buyerName,digest(buyerToken),keyHash,service.price_minor,ref]);
+   const result=await pool.query(`INSERT INTO forge_orders (id,service_id,owner_hash,buyer_email,buyer_name,buyer_token_hash,request_key_hash,amount_minor,currency,payment_reference,buyer_phone) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'NGN',$9,$10) ON CONFLICT (buyer_email,service_id,request_key_hash) DO NOTHING RETURNING *`,[id,sid,service.owner_hash,email,buyerName,digest(buyerToken),keyHash,service.price_minor,ref,buyerPhone]);
    if(!result.rowCount)return reply(req,res,409,{error:'Duplicate request'});await event(id,'order_created',{currency:'NGN'});
    return reply(req,res,201,{order:view(result.rows[0]),buyerToken,warning:'Keep this token private. No checkout or funds are live.'});
   }
