@@ -127,23 +127,27 @@ body{background:radial-gradient(ellipse 90% 50% at 100% 0%,#8f43201b,transparent
 @media(max-width:750px){.sidebar{overflow-y:auto}.browse-mobile{display:grid;place-items:center;border:1px solid #695042;background:#32221d;color:#ffb38f;width:36px;height:36px;border-radius:10px;flex:none}.finder-adjust{display:none}.finder-chips{grid-template-columns:1fr 1fr}}
 .marketplace-note{margin-top:10px;padding:10px;border:1px solid #6b4c3d;border-radius:11px;color:#c7afa2;background:#291f1e;font-size:.75rem}.marketplace-buttons{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
 
-/* ASD Forge sign-in / registration motion. No static design changes. */
-@keyframes forgeAuthArrive{from{opacity:0;transform:translateY(14px) scale(.988)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes forgeAuthPanelRight{0%{opacity:0;transform:translateX(-175%) skewX(-6deg)}15%{opacity:.95}55%{opacity:1;transform:translateX(82%) skewX(3deg)}100%{opacity:0;transform:translateX(260%) skewX(0)}}
-@keyframes forgeAuthPanelLeft{0%{opacity:0;transform:translateX(260%) skewX(6deg)}15%{opacity:.95}55%{opacity:1;transform:translateX(75%) skewX(-3deg)}100%{opacity:0;transform:translateX(-175%) skewX(0)}}
-@keyframes forgeAuthCopySwap{0%{opacity:1;transform:translateX(0);filter:blur(0)}32%{opacity:0;transform:translateX(13px);filter:blur(3px)}48%{opacity:0;transform:translateX(-11px);filter:blur(2px)}100%{opacity:1;transform:translateX(0);filter:blur(0)}}
-@keyframes forgeAuthEnter{0%{opacity:1;transform:scale(1);filter:blur(0)}100%{opacity:0;transform:scale(.975);filter:blur(3px)}}
-.needs-auth #authGate .access-layout{animation:forgeAuthArrive .45s cubic-bezier(.18,.75,.2,1) both}
+
+/* ASD Forge proprietary motion: Forge Ignition. Static design remains unchanged. */
+@keyframes forgeAuthArrive{0%{opacity:0;transform:translateY(16px) scale(.99)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes forgeIgnitionAura{0%{opacity:0;transform:scale(.45)}22%{opacity:.9}54%{opacity:.65;transform:scale(1)}100%{opacity:0;transform:scale(1.25)}}
+@keyframes forgeIgnitionRing{0%{opacity:0;transform:translate(-50%,-50%) scale(.16) rotate(-65deg);filter:blur(5px)}16%{opacity:.9;filter:blur(1px)}45%{opacity:1;transform:translate(-50%,-50%) scale(.73) rotate(45deg);filter:blur(0)}74%{opacity:.75;transform:translate(-50%,-50%) scale(1.06) rotate(138deg)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.28) rotate(185deg);filter:blur(6px)}}
+@keyframes forgeIgnitionGlint{0%,100%{text-shadow:0 0 0 transparent;filter:brightness(1)}46%{text-shadow:0 0 19px #ffa57b7d;filter:brightness(1.2)}}
+@keyframes forgeAuthRefract{0%,100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}31%{opacity:0;transform:translateY(-9px) scale(.985);filter:blur(2px)}46%{opacity:0;transform:translateY(10px) scale(.985);filter:blur(2px)}}
+@keyframes forgeSparkScatter{0%{opacity:0;transform:translate(-50%,-50%) translate(0,0) scale(.2) rotate(0)}17%{opacity:1;transform:translate(-50%,-50%) translate(calc(var(--dx) * .11),calc(var(--dy) * .11)) scale(1) rotate(40deg)}65%{opacity:.9}100%{opacity:0;transform:translate(-50%,-50%) translate(var(--dx),var(--dy)) scale(.25) rotate(180deg)}}
+@keyframes forgeEnterLaunch{0%{opacity:1;transform:scale(1);filter:blur(0)}72%{opacity:.85;filter:blur(0)}100%{opacity:0;transform:scale(1.035);filter:blur(5px)}}
+.needs-auth #authGate .access-layout{animation:forgeAuthArrive .55s cubic-bezier(.2,.8,.25,1) both}
 .access-layout.auth-in-motion{isolation:isolate}
-.access-layout.auth-in-motion:after{content:'';position:absolute;z-index:5;left:30%;top:-12%;width:39%;height:124%;border-radius:45% 58% 42% 53% / 36% 65% 35% 64%;background:linear-gradient(137deg,#372520,#201b1d 72%);box-shadow:0 0 0 1px #ffb5842c,0 0 45px #ffa07727;pointer-events:none;animation:forgeAuthPanelRight .72s cubic-bezier(.65,.02,.22,1) both}
-.access-layout.auth-in-motion[data-next-mode="create"]:after{animation-name:forgeAuthPanelLeft}
-.access-layout.auth-in-motion .access-main h2,.access-layout.auth-in-motion .access-subtitle,.access-layout.auth-in-motion .access-form,.access-layout.auth-in-motion .access-switch{animation:forgeAuthCopySwap .72s cubic-bezier(.55,.05,.25,1) both}
-.access-layout.auth-in-motion .access-tabs button{transition:background-color .22s,border-color .22s,color .22s}
-.access-layout.auth-entering{animation:forgeAuthEnter .38s ease-in both!important}
-@keyframes forgeAuthPanelDown{0%{opacity:0;transform:translateY(-155%) scaleX(.96)}15%{opacity:.95}56%{opacity:1;transform:translateY(64%) scaleX(1.03)}100%{opacity:0;transform:translateY(220%) scaleX(1)}}
-@keyframes forgeAuthPanelUp{0%{opacity:0;transform:translateY(220%) scaleX(.96)}15%{opacity:.95}56%{opacity:1;transform:translateY(64%) scaleX(1.03)}100%{opacity:0;transform:translateY(-155%) scaleX(1)}}
-@media(max-width:850px){.access-layout.auth-in-motion:after{left:-9%;top:9%;width:118%;height:40%;border-radius:42% 58% 54% 46% / 37% 62% 38% 63%;animation-name:forgeAuthPanelDown}.access-layout.auth-in-motion[data-next-mode="create"]:after{animation-name:forgeAuthPanelUp}}
-@media(prefers-reduced-motion:reduce){.needs-auth #authGate .access-layout,.access-layout.auth-in-motion:after,.access-layout.auth-in-motion .access-main h2,.access-layout.auth-in-motion .access-subtitle,.access-layout.auth-in-motion .access-form,.access-layout.auth-in-motion .access-switch,.access-layout.auth-entering{animation:none!important;transition:none!important}}
+.access-layout.auth-in-motion:before{content:"";position:absolute;inset:0;z-index:10;pointer-events:none;background:radial-gradient(circle at 50% 50%,#ffba8752 0,#ff95502a 18%,#ff955000 58%);animation:forgeIgnitionAura .82s ease-out both}
+.access-layout.auth-in-motion:after{content:"";position:absolute;top:50%;left:50%;height:min(65vw,410px);width:min(65vw,410px);border-radius:50%;z-index:11;pointer-events:none;background:conic-gradient(from 25deg,transparent 0 14%,#ffbf948d 16%,#ffd1a9 19%,#ff814d 24%,transparent 29% 49%,#ffb58f 53%,#ffcba0 57%,#ff8553 63%,transparent 69%);-webkit-mask:radial-gradient(circle,transparent 0 55%,#000 59% 62%,transparent 66%);mask:radial-gradient(circle,transparent 0 55%,#000 59% 62%,transparent 66%);animation:forgeIgnitionRing .82s cubic-bezier(.18,.8,.26,1) both}
+.access-layout.auth-in-motion .access-main h2,.access-layout.auth-in-motion .access-subtitle,.access-layout.auth-in-motion .access-form,.access-layout.auth-in-motion .access-switch{animation:forgeAuthRefract .82s cubic-bezier(.25,.5,.3,1) both;will-change:transform,opacity}
+.access-layout.auth-in-motion .access-form{pointer-events:none}
+.access-layout.auth-in-motion .access-story h1 em,.access-layout.auth-in-motion .access-mark{animation:forgeIgnitionGlint .82s ease-out both}
+.forge-ignition-spark{position:absolute;top:50%;left:50%;height:4px;width:4px;border-radius:1px;z-index:12;pointer-events:none;background:#ffccae;box-shadow:0 0 7px 2px #ffa479aa;opacity:0;animation:forgeSparkScatter .78s cubic-bezier(.23,.7,.24,1) both;animation-delay:var(--delay,0ms)}
+.access-layout.auth-entering{animation:forgeEnterLaunch .36s ease-in both!important}
+.access-layout.auth-entering:after{content:"";position:absolute;inset:0;z-index:10;pointer-events:none;background:radial-gradient(circle at 50% 50%,#ffac745c,transparent 65%);animation:forgeIgnitionAura .36s ease-out both}
+@media(max-width:850px){.access-layout.auth-in-motion:after{height:min(82vw,290px);width:min(82vw,290px)}}
+@media(prefers-reduced-motion:reduce){.needs-auth #authGate .access-layout,.access-layout.auth-in-motion:before,.access-layout.auth-in-motion:after,.access-layout.auth-in-motion .access-main h2,.access-layout.auth-in-motion .access-subtitle,.access-layout.auth-in-motion .access-form,.access-layout.auth-in-motion .access-switch,.access-layout.auth-in-motion .access-story h1 em,.access-layout.auth-in-motion .access-mark,.access-layout.auth-entering,.access-layout.auth-entering:after,.forge-ignition-spark{animation:none!important;transition:none!important}.forge-ignition-spark{display:none!important}}
 </style></head>
 <body>
 <section id="authGate" aria-label="ASD Forge account access"><div class="access-layout"><div class="access-story"><div class="access-brand"><span class="access-mark">A</span><div><b>ASD FORGE</b><small>THE INDEPENDENT WAY</small></div></div><div class="eyebrow">YOUR NEXT CHAPTER</div><h1>Build your<br><em>own lane.</em></h1><p>A simple business workspace for the independent thinker. Create your service, organize clients, and grow through doing.</p><div class="bottom-note"><span></span> BUILD • SELL • GROW</div></div><div class="access-main"><a class="access-back" href="/">← Back to the website</a><div class="access-tabs" role="group" aria-label="Account type"><button type="button" id="authTabCreate" class="selected">Create account</button><button type="button" id="authTabLogin">Sign in</button></div><h2 id="authTitle">Create your workspace</h2><p id="authSubtitle" class="access-subtitle">Start with one skill. Build your way.</p><form id="authForm" class="access-form" data-mode="create"><div class="access-field" id="authNameGroup"><label for="authName">Your name</label><input id="authName" type="text" autocomplete="name" placeholder="e.g. Your first name" minlength="2" maxlength="60" required></div><div class="access-field"><label for="authEmail">Email address</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" maxlength="120" required></div><div class="access-field"><label for="authPass">Password</label><div class="password-row"><input id="authPass" type="password" placeholder="Your password" minlength="8" maxlength="128" autocomplete="new-password" required><button id="togglePassword" type="button">Show</button></div><p class="access-help" id="authPasswordHint">At least 8 characters.</p></div><div class="access-field" id="authConfirmGroup"><label for="authConfirm">Confirm password</label><input id="authConfirm" type="password" placeholder="Repeat password" minlength="8" maxlength="128" autocomplete="new-password" required></div><p id="authError" class="auth-error" role="alert" hidden></p><button class="access-submit" id="authSubmit" type="submit">Create my workspace ↗</button></form><p class="access-switch"><span id="authFoot">Already created a local account?</span><button id="authToggle" type="button">Sign in</button></p><p class="access-caveat"><strong>Local-account beta:</strong> Your account and business data are saved in this browser only—not in the cloud. There's no password reset or cross-device sync yet. Export backups from Settings.</p></div></div></section>
@@ -289,10 +293,27 @@ function animateAuthMode(mode){
  if(mode===$('#authForm').dataset.mode||authAnimationBusy)return;
  if(authPrefersLessMotion?.matches){modeSet(mode);updateTabs();return;}
  authAnimationBusy=true;
- authLayout.dataset.nextMode=mode;
  authLayout.classList.add('auth-in-motion');
- setTimeout(()=>{modeSet(mode);updateTabs()},315);
- setTimeout(()=>{authLayout.classList.remove('auth-in-motion');delete authLayout.dataset.nextMode;authAnimationBusy=false},740);
+ const spread=Math.min(authLayout.clientWidth*.34,200);
+ const sparks=[];
+ for(let n=0;n<14;n++){
+  const a=(n/14)*Math.PI*2+(n%3)*.12;
+  const distance=spread*(.68+(n%4)*.11);
+  const el=document.createElement('i');
+  el.className='forge-ignition-spark';
+  el.setAttribute('aria-hidden','true');
+  el.style.setProperty('--dx',Math.round(Math.cos(a)*distance)+'px');
+  el.style.setProperty('--dy',Math.round(Math.sin(a)*distance)+'px');
+  el.style.setProperty('--delay',(n%4)*17+'ms');
+  authLayout.appendChild(el);
+  sparks.push(el);
+ }
+ setTimeout(()=>{modeSet(mode);updateTabs()},365);
+ setTimeout(()=>{
+  authLayout.classList.remove('auth-in-motion');
+  sparks.forEach(el=>el.remove());
+  authAnimationBusy=false;
+ },865);
 }
 
 const current=$('#authForm').dataset.mode||'create';modeSet(current);
