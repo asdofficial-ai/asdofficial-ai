@@ -143,6 +143,18 @@ body{background:radial-gradient(ellipse 90% 50% at 100% 0%,#8f43201b,transparent
 .access-layout.auth-in-motion .access-main h2,.access-layout.auth-in-motion .access-subtitle,.access-layout.auth-in-motion .access-form,.access-layout.auth-in-motion .access-switch{animation:forgeAuthRefract .82s cubic-bezier(.25,.5,.3,1) both;will-change:transform,opacity}
 .access-layout.auth-in-motion .access-form{pointer-events:none}
 .access-layout.auth-in-motion .access-story h1 em,.access-layout.auth-in-motion .access-mark{animation:forgeIgnitionGlint .82s ease-out both}
+
+/* Faint signature visible for a fraction of the Forge Ignition transition only. */
+@keyframes forgeGhostSignature{
+  0%,31%{opacity:0;transform:translate(-50%,-50%) scale(.82) rotate(-9deg);filter:blur(8px)}
+  43%{opacity:.045;filter:blur(3px)}
+  53%{opacity:.13;transform:translate(-50%,-50%) scale(1) rotate(0);filter:blur(.7px)}
+  62%{opacity:.05;filter:blur(2px)}
+  73%,100%{opacity:0;transform:translate(-50%,-50%) scale(1.13) rotate(6deg);filter:blur(8px)}
+}
+.forge-ignition-monogram{position:absolute;z-index:12;left:50%;top:50%;pointer-events:none;user-select:none;white-space:nowrap;color:#ffd0ae;font-size:clamp(48px,7vw,90px);font-weight:900;letter-spacing:.16em;line-height:1;text-shadow:0 0 24px #ffad7940;opacity:0;animation:forgeGhostSignature .82s ease-out both}
+@media(max-width:850px){.forge-ignition-monogram{font-size:clamp(42px,13vw,65px)}}
+@media(prefers-reduced-motion:reduce){.forge-ignition-monogram{display:none!important;animation:none!important}}
 .forge-ignition-spark{position:absolute;top:50%;left:50%;height:4px;width:4px;border-radius:1px;z-index:12;pointer-events:none;background:#ffccae;box-shadow:0 0 7px 2px #ffa479aa;opacity:0;animation:forgeSparkScatter .78s cubic-bezier(.23,.7,.24,1) both;animation-delay:var(--delay,0ms)}
 .access-layout.auth-entering{animation:forgeEnterLaunch .36s ease-in both!important}
 .access-layout.auth-entering:after{content:"";position:absolute;inset:0;z-index:10;pointer-events:none;background:radial-gradient(circle at 50% 50%,#ffac745c,transparent 65%);animation:forgeIgnitionAura .36s ease-out both}
@@ -294,6 +306,11 @@ function animateAuthMode(mode){
  if(authPrefersLessMotion?.matches){modeSet(mode);updateTabs();return;}
  authAnimationBusy=true;
  authLayout.classList.add('auth-in-motion');
+ const signature=document.createElement('span');
+ signature.className='forge-ignition-monogram';
+ signature.textContent='ASD';
+ signature.setAttribute('aria-hidden','true');
+ authLayout.appendChild(signature);
  const spread=Math.min(authLayout.clientWidth*.34,200);
  const sparks=[];
  for(let n=0;n<14;n++){
@@ -312,6 +329,7 @@ function animateAuthMode(mode){
  setTimeout(()=>{
   authLayout.classList.remove('auth-in-motion');
   sparks.forEach(el=>el.remove());
+  signature.remove();
   authAnimationBusy=false;
  },865);
 }
