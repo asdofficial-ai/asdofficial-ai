@@ -1,10 +1,17 @@
 'use strict';
-const {randomUUID,createHash,timingSafeEqual,randomBytes}=require('node:crypto');
+const {randomUUID,createHash,timingSafeEqual,randomBytes,createHmac}=require('node:crypto');
 const roles=Object.freeze({SENTINEL:'Security and suspicious requests',ATLAS:'Uptime and backend health',CIPHER:'Payment anomalies (observation only)',VORTEX:'Application error triage',ECHO:'Customer-support metrics',NEXUS:'Incident coordination'});
 const ddl=`CREATE TABLE IF NOT EXISTS forge_security_incidents(id UUID PRIMARY KEY,agent VARCHAR(20) NOT NULL,severity VARCHAR(12) NOT NULL,summary VARCHAR(280) NOT NULL,source VARCHAR(40) NOT NULL,status VARCHAR(20) NOT NULL DEFAULT 'open',created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),resolved_at TIMESTAMPTZ);CREATE INDEX IF NOT EXISTS forge_security_incidents_time_idx ON forge_security_incidents(created_at DESC);CREATE TABLE IF NOT EXISTS forge_security_audit(id UUID PRIMARY KEY,action VARCHAR(70) NOT NULL,incident_id UUID,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());`;
 const sha=s=>createHash('sha256').update(s).digest();
 const eq=(a,b)=>{const x=sha(a),y=sha(b);return timingSafeEqual(x,y)};
 const sessions=new Map(),attempts=new Map();
+function totp(secret,now=Date.now()){
+ const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';const clean=String(secret||'').toUpperCase().replace(/\s|=/g,'');
+ if(clean.length<16||/[^A-Z2-7]/.test(clean))return null;
+ let bits=0,value=0,bytes=[];for(const c of clean){value=(value<<5)|alphabet.indexOf(c);bits+=5;if(bits>=8){bits-=8;bytes.push((value>>bits)&255)}}
+ const step=Math.floor(now/30000);return [-1,0,1].map(offset=>{const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(step+offset));const h=createHmac('sha1',Buffer.from(bytes)).update(b).digest();const n=h[h.length-1]&15;return String((h.readUInt32BE(n)&0x7fffffff)%1000000).padStart(6,'0')});
+}
+const authReady=()=>String(process.env.FORGE_FOUNDER_SECRET||'').length>=24&&!!totp(process.env.FORGE_FOUNDER_TOTP_SECRET);
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Access-Control-Allow-Origin':'https://asd-forge-v2.onrender.com','Vary':'Origin'});res.end(JSON.stringify(data))};
 const getIp=req=>String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'unknown').split(',')[0];
 function configure({pool}){
@@ -19,17 +26,17 @@ function configure({pool}){
  async function handle(req,res,u,origin){
   if(origin&&origin!=='https://asd-forge-v2.onrender.com')return json(res,403,{error:'Origin not allowed'});
   if(req.method==='POST'&&u.pathname==='/v1/command/login'){
-   const ip=getIp(req),now=Date.now();let row=attempts.get(ip)||{count:0,until:now+900000};if(row.until<now)row={count:0,until:now+900000};row.count++;attempts.set(ip,row);
+   const ip=getIp(req),now=Date.now();if(attempts.size>5000)for(const [key,value] of attempts)if(value.until<now)attempts.delete(key);let row=attempts.get(ip)||{count:0,until:now+900000};if(row.until<now)row={count:0,until:now+900000};row.count++;attempts.set(ip,row);
    if(row.count>5){await incident('SENTINEL','medium','Founder login rate limit exceeded','authentication');return json(res,429,{error:'Too many attempts. Try again later.'})}
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2000)return json(res,413,{error:'Too large'})}
    let body={};try{body=JSON.parse(raw)}catch{return json(res,400,{error:'Invalid JSON'})}
    const secret=process.env.FORGE_FOUNDER_SECRET;
-   if(!secret||secret.length<24)return json(res,503,{error:'Founder authentication not configured'});
-   if(!eq(String(body.secret||''),secret)){await incident('SENTINEL','low','Rejected founder login attempt','authentication');return json(res,401,{error:'Invalid credentials'})}
+   if(!authReady())return json(res,503,{error:'Founder authentication and MFA must be configured'});
+   if(!eq(String(body.secret||''),secret)||!totp(process.env.FORGE_FOUNDER_TOTP_SECRET).some(code=>eq(String(body.code||''),code))){await incident('SENTINEL','low','Rejected founder login attempt','authentication');return json(res,401,{error:'Invalid credentials'})}
    attempts.delete(ip);
-   const token=randomBytes(32).toString('hex');sessions.set(token,{expires:now+3600000});
+   const token=randomBytes(32).toString('hex');sessions.set(token,{expires:now+900000});
    await pool.query('INSERT INTO forge_security_audit(id,action) VALUES($1,$2)',[randomUUID(),'founder_login']);
-   return json(res,200,{token,expiresInSeconds:3600});
+   return json(res,200,{token,expiresInSeconds:900});
   }
   const token=String(req.headers.authorization||'').replace(/^Bearer /i,'');
   const session=sessions.get(token);if(!token||!session||session.expires<Date.now()){sessions.delete(token);return json(res,401,{error:'Founder authentication required'})}
@@ -48,6 +55,6 @@ function configure({pool}){
   }
   return json(res,404,{error:'Not found'});
  }
- return {ddl,handle};
+ return {ddl,handle,incident};
 }
 module.exports={configure};
