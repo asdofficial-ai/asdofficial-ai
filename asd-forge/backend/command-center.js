@@ -15,12 +15,12 @@ const authReady=()=>String(process.env.FORGE_FOUNDER_SECRET||'').length>=24&&!!t
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Access-Control-Allow-Origin':'https://asd-forge-v2.onrender.com','Vary':'Origin'});res.end(JSON.stringify(data))};
 const getIp=req=>String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'unknown').split(',')[0];
 function configure({pool}){
- let lastHealth=true,lastCheck=0;
+ let lastHealth=true,lastCheck=0,outageStart=0;
  const incident=async(agent,severity,summary,source)=>{const recent=await pool.query("SELECT id FROM forge_security_incidents WHERE agent=$1 AND summary=$2 AND created_at>NOW()-INTERVAL '15 minutes' LIMIT 1",[agent,summary]);if(recent.rowCount)return;await pool.query('INSERT INTO forge_security_incidents(id,agent,severity,summary,source) VALUES($1,$2,$3,$4,$5)',[randomUUID(),agent,severity,summary,source])};
  async function observe(){
   const started=Date.now();
-  try{await pool.query('SELECT 1');if(!lastHealth)await incident('ATLAS','low','Database connection recovered','database');lastHealth=true;lastCheck=Date.now();return {database:'ok',latencyMs:Date.now()-started,lastCheck}}
-  catch(e){lastHealth=false;lastCheck=Date.now();throw e}
+  try{await pool.query('SELECT 1');if(!lastHealth){await incident('ATLAS','high','Database connection was interrupted and recovered','database');outageStart=0}lastHealth=true;lastCheck=Date.now();return {database:'ok',latencyMs:Date.now()-started,lastCheck}}
+  catch(e){if(lastHealth)outageStart=Date.now();lastHealth=false;lastCheck=Date.now();throw e}
  }
  const tick=setInterval(async()=>{try{await observe()}catch(e){console.error('Command center health check failed',e.message)}},60000);tick.unref?.();
  async function handle(req,res,u,origin){
