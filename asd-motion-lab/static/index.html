@@ -329,7 +329,7 @@ function renderVault(){
 function selectFromVault(){if(!vaultSelected.size){logToast('Select files to add');return}if(!project){createProject('video')}checkpoint();for(let id of vaultSelected)addAssetToProject(id,false);vaultSelected.clear();closeVault();refreshEditor(true);touch()}
 function currentAsset(){return assets.get((clipAt(playhead)?.clip||selected())?.assetId)}
 const TRACK_LEFT=42,CLIP_GAP=0,PIXELS_PER_SECOND=32;let timelineZoom=1;const timelinePixels=()=>PIXELS_PER_SECOND*timelineZoom;
-function timelineGutter(){return Math.max(0,Math.round(($('#timelineScroll')?.clientWidth||350)/2-TRACK_LEFT))}
+function timelineGutter(){return 0}
 function timeToTrackX(time){
  if(!timelineSegments.length)return TRACK_LEFT+timelineGutter();
  let t=cap(time,0,totalDuration());
@@ -358,6 +358,7 @@ function syncPlayheadPosition(autoScroll=false){
  if(!draggingPlayhead){
   let target=Math.max(0,timeToTrackX(playhead)-viewport.clientWidth/2);
   if(Math.abs(viewport.scrollLeft-target)>.35)viewport.scrollLeft=target;
+  let marker=$('#timelinePlayhead');if(marker)marker.style.left=Math.max(TRACK_LEFT,Math.min(viewport.clientWidth/2,timeToTrackX(playhead)-viewport.scrollLeft))+'px';
  }
  updateQuickKeyframe();
 }
@@ -383,7 +384,7 @@ function updateMotionControls(){
 }
 function onTimelineScroll(){
  if(!project?.clips.length||clipDrag?.active)return;
- let viewport=$('#timelineScroll'),t=trackXToTime(viewport.scrollLeft+viewport.clientWidth/2);
+ let viewport=$('#timelineScroll'),t=trackXToTime(viewport.scrollLeft+(viewport.scrollLeft<1?TRACK_LEFT:viewport.clientWidth/2));
  // Programmatic timeline following during playback must never count as user seeking.
  if(playing&&Math.abs(viewport.scrollLeft-Math.max(0,timeToTrackX(playhead)-viewport.clientWidth/2))<4)return;
  if(Math.abs(t-playhead)<.022)return;
