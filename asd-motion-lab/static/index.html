@@ -279,7 +279,7 @@ async function importFiles(files){
   try{await put('assets',a);assets.set(a.id,a);successes.push(a)}catch(e){logToast('Insufficient local storage for '+a.name);break}
  }
  if(successes.length){
-  if(currentView==='editor'&&project){checkpoint();for(let a of successes)addAssetToProject(a.id,false);refreshEditor(true);touch();closeVault()}
+  if(currentView==='editor'&&project){for(let a of successes)vaultSelected.add(a.id);vaultTab='albums';vaultKind='all';renderVault();logToast('Select media and tap Add to timeline')}
   logToast(successes.length+' new file'+(successes.length>1?'s':'')+' imported');renderProfile();
  }
  if(!$('#mediaModal').classList.contains('hidden')){vaultTab='albums';vaultKind='all';renderVault()}
@@ -320,7 +320,7 @@ function renderVault(){
  list=list.filter(a=>a.name.toLowerCase().includes(q));
  let already=new Set(project?.clips.map(c=>c.assetId)||[]);
  $('#vaultSelected').textContent=vaultSelected.size+' selected · '+already.size+' in project';
- $('#vaultAdd').textContent=vaultSelected.size?'Add '+vaultSelected.size+' to timeline →':'Add to timeline →';
+ $('#vaultAdd').textContent=vaultSelected.size?'Add ('+vaultSelected.size+') →':'Select media to add';$('#vaultAdd').disabled=!vaultSelected.size;
  $('#vaultGrid').innerHTML=list.map(a=>{
   let imported=already.has(a.id),chosen=vaultSelected.has(a.id);
   return '<button class="vault-item '+(chosen?'active ':'')+(imported?'already-imported':'')+'" data-asset="'+a.id+'" aria-pressed="'+chosen+'" aria-label="'+esc(a.name)+(imported?' already imported':'')+'">'
@@ -414,7 +414,9 @@ function onTimelineScroll(){
 
 
 function addTimelineZoomControls(){const target=document.querySelector('#clipCount');if(!target||document.querySelector('#timelineZoomControls'))return;const bar=document.createElement('span');bar.id='timelineZoomControls';bar.style.cssText='display:inline-flex;align-items:center;gap:5px;margin-left:10px;vertical-align:middle';bar.innerHTML='<button type="button" aria-label="Zoom timeline out" data-z="-1">−</button><span id="timelineZoomValue">100%</span><button type="button" aria-label="Zoom timeline in" data-z="1">＋</button>';target.after(bar);bar.querySelectorAll('button').forEach(b=>{b.style.cssText='background:#12343b;color:#9cf3e4;border:1px solid #397d77;border-radius:7px;padding:5px 10px;font-size:17px';b.onclick=()=>{timelineZoom=Math.max(.08,Math.min(64,timelineZoom*(b.dataset.z==='1'?1.6:1/1.6)));renderTimeline();syncPlayheadPosition(true)}})}
+function ensureSelectionActions(){let host=$('#timelineAdd')?.parentElement;if(!host)return;let del=$('#asdDeleteClip');if(!del){del=document.createElement('button');del.id='asdDeleteClip';del.type='button';del.textContent='▤ Delete';del.title='Delete selected clip';del.style.cssText='border:1px solid #a86b75;color:#ffd9dd;background:#43262d;border-radius:8px;padding:8px 10px;margin-right:6px;font-weight:700';host.insertBefore(del,$('#timelineAdd'));del.onclick=()=>{if(!selected())return;removeClip();logToast('Selected clip deleted')};}del.disabled=!selected();del.style.opacity=selected()?'1':'.4';}
 function renderTimeline(){
+ ensureSelectionActions();
  let kf=$('#quickKeyframe'),transport=$('.transport-right');
  if(kf&&transport&&kf.parentElement!==transport){transport.prepend(kf);kf.title='Add keyframe to the selected clip at the playhead';}
  addTimelineZoomControls();const zoomLabel=document.querySelector('#timelineZoomValue');if(zoomLabel)zoomLabel.textContent=Math.round(timelineZoom*100)+'%';
