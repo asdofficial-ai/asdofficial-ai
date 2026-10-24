@@ -144,7 +144,20 @@
 .asd-import-choices{position:fixed;z-index:99999;bottom:76px;left:12px;right:12px;max-width:480px;margin:auto;background:#10242b;color:#f4ffff;border:1px solid #4bd9cf;border-radius:18px;padding:16px;box-shadow:0 12px 60px #000a;display:grid;gap:9px}
 .asd-import-choices button{background:#1b3640;border:1px solid #45616a;border-radius:10px;color:white;padding:12px;text-align:left;font:inherit}
 .speed-curve-editor{display:grid;gap:10px}.speed-curve-editor label{display:flex;align-items:center;gap:10px}.speed-curve-editor input{flex:1;min-width:80px}
-@media(pointer:coarse){.timeline-shell .trim-grip{width:19px;min-height:44px;top:-3px;bottom:-3px}.timeline-shell .trim-left{left:-10px}.timeline-shell .trim-right{right:-10px}.timeline-shell .timeline-clip{touch-action:pan-x}} .timeline-clip,.text-range{contain:layout style} </style>
+@media(pointer:coarse){.timeline-shell .trim-grip{width:19px;min-height:44px;top:-3px;bottom:-3px}.timeline-shell .trim-left{left:-10px}.timeline-shell .trim-right{right:-10px}.timeline-shell .timeline-clip{touch-action:pan-x}} .timeline-clip,.text-range{contain:layout style} 
+/* Desktop-first workspace refinement */
+@media (min-width:1100px){
+ .editor-layout{grid-template-columns:minmax(0,1fr) clamp(320px,25vw,440px);min-height:calc(100dvh - 66px)}
+ .editor-stage-column{min-width:0;overflow:auto}
+ .preview-head{min-height:52px;height:auto;padding:8px 18px}
+ .tool-content{padding:20px 22px}
+ .properties-header{padding:20px 22px}
+ #timelineScroll{min-height:205px}
+ .timeline-clip{min-height:64px}
+ .below-preview-tools{gap:12px;padding:12px 20px;flex-wrap:wrap}
+}
+@media (min-width:1500px){.editor-layout{grid-template-columns:minmax(0,1fr) 420px}.editor-stage-column{padding-inline:12px}.tool-content{padding:24px 28px}}
+</style>
 <style>
 /* ASD Motion Lab: compact editing transport inspired by standard NLE workflows */
 .transport-right .quick-keyframe{min-width:42px;width:42px;height:39px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:1px solid #5cddd1;border-radius:10px;font-size:24px;line-height:1;flex-shrink:0}
@@ -630,7 +643,7 @@ function bindTool(){let c=selected();$$('#toolContent [data-command]').forEach(b
    let info=clipAt(playhead);
    if(!info||info.clip.id!==active.id)return;
    // Auto-keyframing preserves prior transform values and adds a keyframe at this exact frame.
-   let k=ensureKeyframe(active,info.local);k[key]=value;
+   if(!(active.keyframes||[]).length){logToast('Tap ADD KEYFRAME on this clip first');el.value=active[key];return}let k=ensureKeyframe(active,info.local);k[key]=value;
    drawKeyframeMarkers(active);
    updateQuickKeyframe();
   }else active[key]=value;
@@ -782,7 +795,7 @@ function ensureKeyframe(c,local){
  let existing=c.keyframes.find(k=>Math.abs(k.at-t)<.055);
  if(existing)return existing;
  const vals=currentKeyValues(c,t);
- if(!c.keyframes.length&&t>.055){c.keyframes.push({at:0,scale:c.scale,offsetX:c.offsetX,offsetY:c.offsetY});}
+ /* First keyframe is placed only at the user's chosen time. */
  const k={at:t,scale:vals.scale,offsetX:vals.offsetX,offsetY:vals.offsetY};
  c.keyframes.push(k);c.keyframes.sort((a,b)=>a.at-b.at);
  return k;
@@ -797,8 +810,8 @@ function drawKeyframeMarkers(c){
 }
 function addQuickKeyframe(){
  let info=clipAt(playhead);
- if(!info)return logToast('Add or select a clip first');
- stopPlayback();selectedId=info.clip.id;checkpoint();
+ if(!info||selectedId!==info.clip.id)return logToast('Select this clip first, then add a keyframe');
+ stopPlayback();checkpoint();
  let old=info.clip.keyframes?.length||0;
  let k=ensureKeyframe(info.clip,info.local);
  drawKeyframeMarkers(info.clip);touch();updateQuickKeyframe();
