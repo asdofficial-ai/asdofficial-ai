@@ -726,7 +726,22 @@ function renderEditableTextTrack(){
  const up=()=>{window.removeEventListener('pointermove',move);touch();renderEditableTextTrack();applyPreview();renderTool()};
  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});
  });
- let create=track.querySelector('#timelineCreateText');if(create)create.onclick=()=>createTextLayer('text');
+ track.querySelectorAll('[data-timeline-text]').forEach(bar=>bar.onpointerdown=e=>{
+ if(e.target.closest('[data-text-edge]'))return;
+ let t=project.texts.find(x=>x.id===bar.dataset.timelineText);if(!t)return;
+ e.preventDefault();e.stopPropagation();selectedTextId=t.id;
+ const origin=e.clientX,start=t.start,end=t.end,duration=end-start;
+ let moved=false;
+ const move=ev=>{let dx=ev.clientX-origin;if(Math.abs(dx)>5&&!moved){checkpoint();moved=true}if(!moved)return;
+ let next=cap(start+dx/timelinePixels(),0,Math.max(0,totalDuration()-duration));
+ t.start=next;t.end=next+duration;
+ bar.style.left=(TRACK_LEFT+timelineGutter()+next*timelinePixels())+'px';
+ scheduleTrimPreview();
+ };
+ const up=()=>{window.removeEventListener('pointermove',move);if(moved){touch();renderEditableTextTrack();applyPreview()}else{renderEditableTextTrack();seek(Math.min(t.end,Math.max(t.start,playhead)))}renderTool()};
+ window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});
+});
+let create=track.querySelector('#timelineCreateText');if(create)create.onclick=()=>createTextLayer('text');
 }
 function renderTextTimelineOnly(){renderEditableTextTrack()}
 function duplicateSelectedText(){let t=textSelected();if(!t)return;checkpoint();let length=t.end-t.start;let start=Math.min(totalDuration()-.1,t.end);let end=Math.min(totalDuration(),start+length);if(end-start<.1){start=t.start;end=t.end}let copy={...structuredClone(t),id:uid(),start,end};project.texts.push(copy);selectedTextId=copy.id;touch();refreshEditor(true);logToast('Text duplicated')}
