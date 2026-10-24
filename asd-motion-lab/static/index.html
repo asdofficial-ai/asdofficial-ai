@@ -782,7 +782,20 @@ function splitSelectedTextAtPlayhead(){
 }
 function renderTextOverlay(){
  if(!project)return;let visible=project.texts.filter(t=>playhead>=t.start&&playhead<=t.end);let html=visible.map(raw=>{let t=textDefaults(raw);ensureFonts(t.font);let a=textAnimation(t,playhead),time=playhead-t.start;let shown=t.animIn==='typewriter'?Array.from(t.text).slice(0,Math.ceil(cap(time/.9,0,1)*Array.from(t.text).length)).join(''):t.text;let y=t.y!=null?t.y:(t.position==='top'?15:t.position==='center'?50:83);let filter=a.blur?'filter:blur('+a.blur+'px);':'';let bg=t.effect==='boxed'?'background:#08131bd6;padding:5px 12px;border-radius:9px;':'';let hollow=t.effect==='hollow'?'color:transparent;-webkit-text-stroke:1.4px '+t.color+';':'';let stroke=t.effect==='outline'?' -webkit-text-stroke:1px #07151b;':'';let trans='translate(-50%,-50%) translate('+a.dx+'px,'+a.dy+'px) scale('+a.scale+') rotate('+(a.rot+(t.rotation||0))+'deg)';return '<button type="button" class="editable-title '+(selectedTextId===t.id?'active':'')+'" data-preview-text="'+t.id+'" style="left:'+(t.x??50)+'%;top:'+y+'%;transform:'+trans+';opacity:'+a.alpha+';'+filter+bg+hollow+stroke+'font-size:'+t.size+'px;font-family:&quot;'+esc(t.font)+'&quot;,sans-serif;font-weight:'+(t.weight||800)+';color:'+t.color+';letter-spacing:'+(t.letterSpacing||0)+'px;text-shadow:'+textEffectCSS(t)+'">'+esc(shown)+'</button>'}).join('');
- let layer=$('#stageTextLayer');if(layer.dataset.snapshot===html)return;layer.dataset.snapshot=html;layer.innerHTML=html;layer.querySelectorAll('[data-preview-text]').forEach(b=>b.onclick=e=>{e.preventDefault();selectedTextId=b.dataset.previewText;setTool('text');if(window.innerWidth<700)openControlsSheet()});
+ let layer=$('#stageTextLayer');if(layer.dataset.snapshot===html)return;layer.dataset.snapshot=html;layer.innerHTML=html;layer.querySelectorAll('[data-preview-text]').forEach(b=>{
+ b.style.touchAction='none';
+ b.onpointerdown=e=>{
+  if(e.button!==0&&e.pointerType==='mouse')return;
+  e.preventDefault();e.stopPropagation();selectedTextId=b.dataset.previewText;
+  let t=project.texts.find(x=>x.id===selectedTextId);if(!t)return;
+  let rect=$('#stage').getBoundingClientRect(),x=e.clientX,y=e.clientY,ox=t.x??50,oy=t.y??(t.position==='top'?15:t.position==='center'?50:83),changed=false;
+  const move=ev=>{let dx=(ev.clientX-x)/Math.max(1,rect.width)*100,dy=(ev.clientY-y)/Math.max(1,rect.height)*100;if(!changed&&Math.hypot(dx,dy)<.4)return;if(!changed){checkpoint();changed=true}
+   t.x=cap(ox+dx,0,100);t.y=cap(oy+dy,0,100);b.style.left=t.x+'%';b.style.top=t.y+'%';
+  };
+  const up=()=>{window.removeEventListener('pointermove',move);if(changed){touch();layer.dataset.snapshot='';renderTextOverlay()}else{setTool('text');if(window.innerWidth<700)openControlsSheet()}};
+  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});
+ };
+});
 }
 function startTrim(e){e.preventDefault();e.stopPropagation();stopPlayback();let b=e.currentTarget,c=project.clips.find(c=>c.id===b.dataset.id);if(!c)return;selectedId=c.id;checkpoint();clipResize={id:c.id,side:b.dataset.trim,startX:e.clientX,oldStart:c.start,oldEnd:c.end,oldDuration:c.stillDuration,len:clipLen(c),sourceLen:assets.get(c.assetId)?.duration||c.end};window.addEventListener('pointermove',dragTrim);window.addEventListener('pointerup',endTrim,{once:true});window.addEventListener('pointercancel',endTrim,{once:true})}
 function bindTrimGrips(){} // Grip events bound after rebuilding the timeline
