@@ -838,6 +838,33 @@ $('#maskModal').addEventListener('click',e=>{if(e.target.id==='maskModal')closeM
 function bind(){bindMask();const transport=$('.transport');if(transport&&!$('#belowPreviewTools')){let row=document.createElement('div');row.id='belowPreviewTools';row.className='below-preview-tools';transport.after(row);for(let id of ['quickKeyframe','canvasRatioBtn']){let el=$('#'+id);if(el)row.appendChild(el)}}document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>{let a=b.dataset.action;if(a==='newvideo'||a==='newphoto')createProject(a==='newphoto'?'photo':'video');else if(a==='picker')openVault();else if(a==='sounds')openSounds();else if(a==='profile'||a==='home'||a==='projects')navigate(a)});$('#globalSearch').oninput=renderHomeCards;$('#fileInput').onchange=async e=>{await importFiles(e.target.files);e.target.value='';if(!project&&assets.size)renderHomeCards()};$('#audioInput').onchange=async e=>{let f=e.target.files?.[0];e.target.value='';if(!f||!project)return;let a={id:uid(),name:f.name,kind:'audio',type:f.type,size:f.size,created:Date.now(),blob:f};try{await put('assets',a);assets.set(a.id,a);checkpoint();project.music={id:'upload',assetId:a.id,name:f.name,volume:.65};touch();renderTimeline();logToast('Audio added to project')}catch{logToast('Unable to store audio')}};$('#importMedia').onclick=()=>$('#fileInput').click();$('#closeVault').onclick=closeVault;$('#vaultTabs').onclick=e=>{let b=e.target.closest('button[data-tab]');if(b){vaultTab=b.dataset.tab;renderVault()}};$('#vaultKind').onclick=e=>{let b=e.target.closest('button[data-kind]');if(b){vaultKind=b.dataset.kind;renderVault()}};$('#vaultSearch').oninput=renderVault;$('#vaultAdd').onclick=selectFromVault;$('#closeSounds').onclick=()=>$('#soundModal').classList.add('hidden');$('#soundSearch').oninput=renderSounds;$('#soundImport').onclick=()=>$('#audioInput').click();$('#projectName').onchange=e=>{if(project){project.name=e.target.value.trim()||'Untitled project';touch();renderSideProjects()}};$('#undoBtn').onclick=undoAction;$('#redoBtn').onclick=redoAction;$('#playPause').onclick=()=>playing?stopPlayback():startPlayback();$('#goStart').onclick=()=>seek(0);$('#nextClip').onclick=goNext;$('#timeScrubber').oninput=e=>{stopPlayback();seek(Number(e.target.value)/100)};$('#timelineAdd').onclick=showImportChoices;$('#stageAdd').onclick=showImportChoices;
  const timelineScroll=$('#timelineScroll'),handle=$('#playheadHandle');
  $('#quickKeyframe').onclick=addQuickKeyframe;
+ // Move imported SVG shapes directly on the preview, with keyframes only after manual activation.
+ const graphic=$('#stageImage');graphic.style.touchAction='none';
+ graphic.addEventListener('pointerdown',e=>{
+  let info=clipAt(playhead),c=info?.clip,a=c&&assets.get(c.assetId);
+  if(!c||!a||a.type!=='image/svg+xml'||c.id!==selectedId)return;
+  e.preventDefault();stopPlayback();
+  let rect=$('#stage').getBoundingClientRect(),originX=e.clientX,originY=e.clientY;
+  let at=info.local,vals=currentKeyValues(c,at),moved=false;
+  const move=ev=>{
+   let dx=(ev.clientX-originX)/Math.max(1,rect.width)*100;
+   let dy=(ev.clientY-originY)/Math.max(1,rect.height)*100;
+   if(!moved&&Math.hypot(dx,dy)<.5)return;
+   if(!moved){checkpoint();moved=true}
+   let nx=cap(vals.offsetX+dx,-70,70),ny=cap(vals.offsetY+dy,-70,70);
+   if(c.keyframes?.length){let k=ensureKeyframe(c,at);k.offsetX=nx;k.offsetY=ny}
+   else{c.offsetX=nx;c.offsetY=ny}
+   scheduleTrimPreview();
+  };
+  const up=()=>{
+   window.removeEventListener('pointermove',move);
+   window.removeEventListener('pointercancel',up);
+   if(moved){touch();drawKeyframeMarkers(c);updateQuickKeyframe();renderTool();logToast('Shape position updated')}
+  };
+  window.addEventListener('pointermove',move);
+  window.addEventListener('pointerup',up,{once:true});
+  window.addEventListener('pointercancel',up,{once:true});
+ });
  timelineScroll.addEventListener('scroll',onTimelineScroll,{passive:true});
  // Touch: native horizontal scrolling works across the ruler, clips and all tracks.
  // Desktop: mouse/touchpad can drag or scroll anywhere, not just the line.
