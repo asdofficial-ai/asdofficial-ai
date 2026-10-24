@@ -423,7 +423,7 @@ function renderTimeline(){
  let step=Math.max(.1,Math.pow(2,Math.ceil(Math.log2(80/timelinePixels()))));
  for(let t=0;t<=allLen+.001;t+=step){let tick=document.createElement('span');tick.className='ruler-tick';tick.style.left=timeToTrackX(t)+'px';tick.textContent=fmt(t);ruler.append(tick)}
  $('#timelineClips').innerHTML='<span class="timeline-spacer" aria-hidden="true" style="width:'+gutter+'px"></span>'+clips.map((c,i)=>{let a=assets.get(c.assetId),width=timelineSegments[i].width;
-  return '<div class="timeline-clip '+(c.id===selectedId?'selected':'')+'" data-clip="'+c.id+'" tabindex="0" role="button" style="width:'+width+'px" aria-label="Clip '+(i+1)+', '+esc(a?.name||'missing media')+'">'+(a?.thumbnail?'<img src="'+a.thumbnail+'" alt="">':'')+'<span class="clip-ratio">'+ratioOf(a)+(c.reverse?' • ⇄':'')+'</span><b>'+esc(a?.name||'Missing media')+'</b><small>'+fmt(clipLen(c))+' · '+(i+1)+'</small>'+(c.keyframes||[]).map(k=>'<span class="kf-diamond" style="left:'+cap((k.at/Math.max(.001,clipLen(c)))*100,0,100)+'%" title="Keyframe '+fmt(k.at)+'">◆</span>').join('')+(c.id===selectedId?'<span class="trim-grip trim-left" data-trim="left" data-id="'+c.id+'" title="Drag to trim start">⠿</span><span class="trim-grip trim-right" data-trim="right" data-id="'+c.id+'" title="Drag to trim end">⠿</span>':'')+'</div>'
+  return '<div class="timeline-clip '+(c.id===selectedId?'selected':'')+'" data-clip="'+c.id+'" tabindex="0" role="button" style="width:'+width+'px" aria-label="Clip '+(i+1)+', '+esc(a?.name||'missing media')+'">'+(a?.thumbnail?'<img src="'+a.thumbnail+'" alt="">':'')+'<span class="clip-ratio">'+ratioOf(a)+(c.reverse?' • ⇄':'')+'</span><b>'+esc(a?.name||'Missing media')+'</b><small>'+fmt(clipLen(c))+' · '+(i+1)+'</small>'+(c.keyframes||[]).map(k=>'<span class="kf-diamond" style="left:'+cap((k.at/Math.max(.001,clipLen(c)))*100,0,100)+'%" title="Keyframe '+fmt(k.at)+'">◆</span>').join('')+'<span class="trim-grip trim-left" data-trim="left" data-id="'+c.id+'" title="Drag to trim start">⠿</span><span class="trim-grip trim-right" data-trim="right" data-id="'+c.id+'" title="Drag to trim end">⠿</span>'+'</div>'
  }).join('')+'<button class="track-add" title="Add another clip" id="addClipEnd" aria-label="Import another clip">＋</button>'+ '<span class="timeline-spacer" aria-hidden="true" style="width:'+Math.ceil($('#timelineScroll').clientWidth/2)+'px"></span>';
  $$('#timelineClips [data-clip]').forEach(b=>{b.onkeydown=e=>{if(e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const id=b.dataset.clip,idx=project.clips.findIndex(c=>c.id===id);if(repositionClip(id,idx+(e.key==='ArrowLeft'?-1:1)))logToast('Clip moved');return}if(e.key==='Enter'){e.preventDefault();b.click()}};b.onclick=e=>{if(e.target.closest('.trim-grip')||Date.now()<scrubSuppressClick)return;
   let seg=timelineSegments.find(seg=>seg.id===b.dataset.clip);if(!seg)return;
@@ -436,9 +436,10 @@ function renderTimeline(){
  $('#addClipEnd').onclick=openVault;
  $('#audioTimeline').innerHTML=project.music?'<span>♫ &nbsp;'+esc(project.music.name)+' &nbsp; · '+Math.round(project.music.volume*100)+'%</span>':'<span>＋ Add background music or sound</span>';
  $('#audioTimeline').onclick=()=>openSounds();
- $('#textTimeline').innerHTML=project.texts.length?project.texts.map(t=>'<button class="text-track-chip '+(selectedTextId===t.id?'selected':'')+'" data-timeline-text="'+t.id+'" title="Click to edit text">T '+esc(t.text.slice(0,20))+'</button>').join(''):'<button id="timelineCreateText" class="timeline-empty-text">＋ Add title or captions</button>';
- $('#textTimeline').onclick=e=>{let b=e.target.closest('[data-timeline-text]');if(b){selectedTextId=b.dataset.timelineText;setTool('text');openControlsSheet();return}if(e.target.closest('#timelineCreateText'))createTextLayer('text');};
- $$('#timelineClips [data-trim]').forEach(grip=>grip.onpointerdown=startTrim);
+ renderEditableTextTrack();
+ $('#textTimeline').onclick=e=>{if(e.target.closest('[data-text-edge]'))return;let b=e.target.closest('[data-timeline-text]');if(b){selectedTextId=b.dataset.timelineText;setTool('text');openControlsSheet();renderEditableTextTrack();return}if(e.target.closest('#timelineCreateText'))createTextLayer('text');};
+ $('#timelineClips [data-trim]').forEach(grip=>grip.onpointerdown=startTrim);
+ if(!$('#splitTextAtPlayhead')){let bar=document.createElement('button');bar.id='splitTextAtPlayhead';bar.textContent='✂ Split text at playhead';bar.style.cssText='background:#48352f;color:#ffe2cf;border:1px solid #a77d6b;border-radius:8px;padding:7px;margin:5px';$('#textTimeline').parentElement?.append(bar);bar.onclick=splitSelectedTextAtPlayhead;}
  $('#timeScrubber').max=Math.max(1,Math.floor(allLen*100));
  syncPlayheadPosition(false);
 }
@@ -700,7 +701,28 @@ function bindTextControls(){
  if($('#duplicateText'))$('#duplicateText').onclick=()=>{let t=textSelected();if(!t)return;checkpoint();let copy=structuredClone(t);copy.id=uid();copy.text+=' COPY';project.texts.push(copy);selectedTextId=copy.id;touch();refreshEditor(true)};
  if($('#deleteText'))$('#deleteText').onclick=()=>{checkpoint();project.texts=project.texts.filter(t=>t.id!==selectedTextId);selectedTextId=project.texts[0]?.id||null;touch();refreshEditor(true)};
 }
-function renderTextTimelineOnly(){let timeline=$('#textTimeline');if(!timeline)return;timeline.innerHTML=project.texts.length?project.texts.map(t=>'<button class="text-track-chip '+(selectedTextId===t.id?'selected':'')+'" data-timeline-text="'+t.id+'">T '+esc(t.text.slice(0,20))+'</button>').join(''):'<button id="timelineCreateText" class="timeline-empty-text">＋ Add title or captions</button>'}
+function renderEditableTextTrack(){
+ let track=$('#textTimeline');if(!track||!project)return;
+ track.style.cssText='position:relative;min-height:68px;display:block;overflow:visible;min-width:100%;width:'+Math.max(200,timelineWidth-TRACK_LEFT)+'px';
+ let px=t=>TRACK_LEFT+timelineGutter()+t*timelinePixels();
+ track.innerHTML=project.texts.map(t=>{
+ let left=px(t.start),width=Math.max(22,(t.end-t.start)*timelinePixels());
+ return '<div class="text-range '+(selectedTextId===t.id?'selected':'')+'" data-timeline-text="'+t.id+'" style="position:absolute;top:7px;left:'+left+'px;width:'+width+'px;height:45px;border:1px solid #e8a882;border-radius:8px;background:#6b493eaa;display:flex;align-items:center;justify-content:center;box-sizing:border-box;color:#ffe9d6;font-size:11px;touch-action:pan-x;overflow:visible"><span data-text-edge="left" data-text-id="'+t.id+'" style="position:absolute;left:-6px;top:0;bottom:0;width:13px;background:#e9ad88;border-radius:6px;touch-action:none;cursor:ew-resize"></span><span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 11px">T '+esc(t.text.slice(0,24))+'</span><span data-text-edge="right" data-text-id="'+t.id+'" style="position:absolute;right:-6px;top:0;bottom:0;width:13px;background:#e9ad88;border-radius:6px;touch-action:none;cursor:ew-resize"></span></div>';
+ }).join('')+'<button id="timelineCreateText" style="position:absolute;top:8px;left:'+Math.max(px(totalDuration())+12,80)+'px;padding:9px;border:1px dashed #ac8172;border-radius:7px;background:#362e2b;color:#f8d5c6">＋ Text</button>';
+ track.querySelectorAll('[data-text-edge]').forEach(handle=>handle.onpointerdown=e=>{
+ e.preventDefault();e.stopPropagation();let t=project.texts.find(x=>x.id===handle.dataset.textId);if(!t)return;
+ checkpoint();selectedTextId=t.id;const origin=e.clientX,start=t.start,end=t.end,side=handle.dataset.textEdge;
+ const move=ev=>{let d=(ev.clientX-origin)/timelinePixels();if(side==='left')t.start=cap(start+d,0,end-.1);else t.end=cap(end+d,start+.1,totalDuration());renderEditableTextTrack();applyPreview()};
+ const up=()=>{window.removeEventListener('pointermove',move);touch();renderEditableTextTrack();renderTool()};
+ window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});
+ });
+ let create=track.querySelector('#timelineCreateText');if(create)create.onclick=()=>createTextLayer('text');
+}
+function renderTextTimelineOnly(){renderEditableTextTrack()}
+function splitSelectedTextAtPlayhead(){
+ if(!project)return;let t=textSelected();if(!t||playhead<=t.start+.1||playhead>=t.end-.1){logToast('Select text and move playhead inside its range');return}
+ checkpoint();let next={...structuredClone(t),id:uid(),start:playhead};t.end=playhead;project.texts.push(next);selectedTextId=next.id;touch();refreshEditor(true);logToast('Text split at playhead');
+}
 function renderTextOverlay(){
  if(!project)return;let visible=project.texts.filter(t=>playhead>=t.start&&playhead<=t.end);let html=visible.map(raw=>{let t=textDefaults(raw);ensureFonts(t.font);let a=textAnimation(t,playhead),time=playhead-t.start;let shown=t.animIn==='typewriter'?Array.from(t.text).slice(0,Math.ceil(cap(time/.9,0,1)*Array.from(t.text).length)).join(''):t.text;let y=t.y!=null?t.y:(t.position==='top'?15:t.position==='center'?50:83);let filter=a.blur?'filter:blur('+a.blur+'px);':'';let bg=t.effect==='boxed'?'background:#08131bd6;padding:5px 12px;border-radius:9px;':'';let hollow=t.effect==='hollow'?'color:transparent;-webkit-text-stroke:1.4px '+t.color+';':'';let stroke=t.effect==='outline'?' -webkit-text-stroke:1px #07151b;':'';let trans='translate(-50%,-50%) translate('+a.dx+'px,'+a.dy+'px) scale('+a.scale+') rotate('+(a.rot+(t.rotation||0))+'deg)';return '<button type="button" class="editable-title '+(selectedTextId===t.id?'active':'')+'" data-preview-text="'+t.id+'" style="left:'+(t.x??50)+'%;top:'+y+'%;transform:'+trans+';opacity:'+a.alpha+';'+filter+bg+hollow+stroke+'font-size:'+t.size+'px;font-family:&quot;'+esc(t.font)+'&quot;,sans-serif;font-weight:'+(t.weight||800)+';color:'+t.color+';letter-spacing:'+(t.letterSpacing||0)+'px;text-shadow:'+textEffectCSS(t)+'">'+esc(shown)+'</button>'}).join('');
  let layer=$('#stageTextLayer');if(layer.dataset.snapshot===html)return;layer.dataset.snapshot=html;layer.innerHTML=html;layer.querySelectorAll('[data-preview-text]').forEach(b=>b.onclick=e=>{e.preventDefault();selectedTextId=b.dataset.previewText;setTool('text');if(window.innerWidth<700)openControlsSheet()});
