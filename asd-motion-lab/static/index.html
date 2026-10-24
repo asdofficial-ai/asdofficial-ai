@@ -449,7 +449,7 @@ function renderTimeline(){
  renderEditableTextTrack();
  $('#textTimeline').onclick=e=>{if(e.target.closest('[data-text-edge]'))return;let b=e.target.closest('[data-timeline-text]');if(b){selectedTextId=b.dataset.timelineText;setTool('text');openControlsSheet();renderEditableTextTrack();return}if(e.target.closest('#timelineCreateText'))createTextLayer('text');};
  $('#timelineClips [data-trim]').forEach(grip=>grip.onpointerdown=startTrim);
- if(!$('#splitTextAtPlayhead')){let bar=document.createElement('button');bar.id='splitTextAtPlayhead';bar.textContent='✂ Split text at playhead';bar.style.cssText='background:#48352f;color:#ffe2cf;border:1px solid #a77d6b;border-radius:8px;padding:7px;margin:5px';$('#textTimeline').parentElement?.append(bar);bar.onclick=splitSelectedTextAtPlayhead;}
+ if(!$('#splitTextAtPlayhead')){let bar=document.createElement('button');bar.id='splitTextAtPlayhead';bar.textContent='✂ Split text at playhead';bar.style.cssText='background:#48352f;color:#ffe2cf;border:1px solid #a77d6b;border-radius:8px;padding:7px;margin:5px';$('#textTimeline').parentElement?.append(bar);bar.onclick=splitSelectedTextAtPlayhead;let copy=document.createElement('button');copy.id='duplicateTextAtPlayhead';copy.textContent='⧉ Duplicate text';copy.style.cssText=bar.style.cssText;bar.after(copy);copy.onclick=duplicateSelectedText;let remove=document.createElement('button');remove.id='deleteTextAtPlayhead';remove.textContent='▤ Delete text';remove.style.cssText='background:#43262d;color:#ffd9dd;border:1px solid #a86b75;border-radius:8px;padding:7px;margin:5px';copy.after(remove);remove.onclick=deleteSelectedText;}
  $('#timeScrubber').max=Math.max(1,Math.floor(allLen*100));
  syncPlayheadPosition(false);
 }
@@ -729,6 +729,8 @@ function renderEditableTextTrack(){
  let create=track.querySelector('#timelineCreateText');if(create)create.onclick=()=>createTextLayer('text');
 }
 function renderTextTimelineOnly(){renderEditableTextTrack()}
+function duplicateSelectedText(){let t=textSelected();if(!t)return;checkpoint();let length=t.end-t.start;let start=Math.min(totalDuration()-.1,t.end);let end=Math.min(totalDuration(),start+length);if(end-start<.1){start=t.start;end=t.end}let copy={...structuredClone(t),id:uid(),start,end};project.texts.push(copy);selectedTextId=copy.id;touch();refreshEditor(true);logToast('Text duplicated')}
+function deleteSelectedText(){let t=textSelected();if(!t)return;checkpoint();project.texts=project.texts.filter(x=>x.id!==t.id);selectedTextId=project.texts.at(-1)?.id||null;touch();refreshEditor(true);logToast('Text deleted')}
 function splitSelectedTextAtPlayhead(){
  if(!project)return;let t=textSelected();if(!t||playhead<=t.start+.1||playhead>=t.end-.1){logToast('Select text and move playhead inside its range');return}
  checkpoint();let next={...structuredClone(t),id:uid(),start:playhead};t.end=playhead;project.texts.push(next);selectedTextId=next.id;touch();refreshEditor(true);logToast('Text split at playhead');
