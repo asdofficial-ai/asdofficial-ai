@@ -853,7 +853,7 @@ function bind(){bindMask();const transport=$('.transport');if(transport&&!$('#be
  // Pressing the marker is optional: moving the strip itself is the primary interaction.
  let markerDrag=null;
  handle.addEventListener('pointerdown',e=>{if(!project?.clips.length)return;stopPlayback();markerDrag={id:e.pointerId,x:e.clientX,t:playhead};handle.setPointerCapture(e.pointerId);e.preventDefault()});
- handle.addEventListener('pointermove',e=>{if(!markerDrag||markerDrag.id!==e.pointerId)return;seek(markerDrag.t+(e.clientX-markerDrag.x)/PIXELS_PER_SECOND)});
+ handle.addEventListener('pointermove',e=>{if(!markerDrag||markerDrag.id!==e.pointerId)return;seek(markerDrag.t+(e.clientX-markerDrag.x)/timelinePixels())});
  const endMarker=e=>{if(markerDrag?.id===e.pointerId)markerDrag=null};
  handle.addEventListener('pointerup',endMarker);handle.addEventListener('pointercancel',endMarker);
  // Drag picture/video to set X/Y; two fingers pinch to create a zoom keyframe.
