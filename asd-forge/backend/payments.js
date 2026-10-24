@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS forge_orders (
 ALTER TABLE forge_orders ADD COLUMN IF NOT EXISTS buyer_phone VARCHAR(15);
 CREATE INDEX IF NOT EXISTS forge_orders_service_idx ON forge_orders(service_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS forge_orders_status_idx ON forge_orders(status);
+CREATE TABLE IF NOT EXISTS forge_order_messages(id UUID PRIMARY KEY,order_id UUID NOT NULL REFERENCES forge_orders(id) ON DELETE CASCADE,sender VARCHAR(10) NOT NULL CHECK(sender IN ('buyer','seller')),body VARCHAR(2000) NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());CREATE INDEX IF NOT EXISTS forge_order_messages_idx ON forge_order_messages(order_id,created_at,id);
 CREATE TABLE IF NOT EXISTS forge_order_events(
  id UUID PRIMARY KEY, order_id UUID NOT NULL REFERENCES forge_orders(id), event VARCHAR(64) NOT NULL,
  detail JSONB DEFAULT '{}'::jsonb, occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -103,8 +104,21 @@ function configure({pool,send}){
    if(!result.rowCount)return reply(req,res,409,{error:'Duplicate request'});await event(id,'order_created',{currency:'NGN'});
    return reply(req,res,201,{order:view(result.rows[0]),buyerToken,warning:'Keep this token private. No checkout or funds are live.'});
   }
-  const matched=p.match(/^\/v1\/orders\/([0-9a-f-]{36})(?:\/(checkout|verify|deliver|decision|resolve|refund|refund-check))?$/i);if(!matched)return false;
+  const matched=p.match(/^\/v1\/orders\/([0-9a-f-]{36})(?:\/(checkout|verify|deliver|decision|resolve|refund|refund-check|messages))?$/i);if(!matched)return false;
   const id=matched[1],action=matched[2]||'',order=await getOrder(id);
+  if(action==='messages'&&(m==='GET'||m==='POST')){
+    const bearer=String(req.headers.authorization||'').replace(/^Bearer /i,'');
+    const buyer=equal(digest(bearer),order.buyer_token_hash),seller=equal(digest(bearer),order.owner_hash);
+    if(!buyer&&!seller)throw er('Order authorization required',403);
+    if(m==='GET'){
+      const rows=await pool.query('SELECT id,sender,body,created_at FROM forge_order_messages WHERE order_id=$1 ORDER BY created_at ASC,id ASC LIMIT 300',[id]);
+      return reply(req,res,200,{messages:rows.rows});
+    }
+    const {data}=await body(req,5000);const message=String(data.message||'').trim();
+    if(message.length<1||message.length>2000)throw er('Message must contain 1 to 2000 characters');
+    const result=await pool.query('INSERT INTO forge_order_messages(id,order_id,sender,body) VALUES($1,$2,$3,$4) RETURNING id,sender,body,created_at',[randomUUID(),id,buyer?'buyer':'seller',message]);
+    return reply(req,res,201,{message:result.rows[0]});
+  }
   if(m==='GET'&&!action){const bearer=String(req.headers.authorization||'').replace(/^Bearer /i,'');if(!equal(digest(bearer),order.buyer_token_hash)&&!equal(digest(bearer),order.owner_hash))throw er('Not authorized',403);return reply(req,res,200,{order:view(order)});}
   if(m!=='POST')throw er('Method not allowed',405);
   if(action==='checkout'){
