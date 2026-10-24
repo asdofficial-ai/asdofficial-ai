@@ -144,7 +144,7 @@
 .asd-import-choices{position:fixed;z-index:99999;bottom:76px;left:12px;right:12px;max-width:480px;margin:auto;background:#10242b;color:#f4ffff;border:1px solid #4bd9cf;border-radius:18px;padding:16px;box-shadow:0 12px 60px #000a;display:grid;gap:9px}
 .asd-import-choices button{background:#1b3640;border:1px solid #45616a;border-radius:10px;color:white;padding:12px;text-align:left;font:inherit}
 .speed-curve-editor{display:grid;gap:10px}.speed-curve-editor label{display:flex;align-items:center;gap:10px}.speed-curve-editor input{flex:1;min-width:80px}
-</style>
+@media(pointer:coarse){.timeline-shell .trim-grip{width:19px;min-height:44px;top:-3px;bottom:-3px}.timeline-shell .trim-left{left:-10px}.timeline-shell .trim-right{right:-10px}.timeline-shell .timeline-clip{touch-action:pan-x}} .timeline-clip,.text-range{contain:layout style} </style>
 </head>
 <body>
 <div id="app" class="app">
@@ -413,7 +413,7 @@ function renderTimeline(){
  if(!project)return;
  let clips=project.clips,allLen=totalDuration(),pos=0,left=timelineGutter(),gutter=left;
  timelineSegments=clips.map(c=>{
-  let len=clipLen(c),width=Math.max(38,len*timelinePixels());let seg={id:c.id,start:pos,duration:len,left,width};
+  let len=clipLen(c),width=Math.max(8,len*timelinePixels());let seg={id:c.id,start:pos,duration:len,left,width};
   pos+=len;left+=width+CLIP_GAP;return seg;
  });
  timelineWidth=Math.max($('#timelineScroll').clientWidth,TRACK_LEFT+left+Math.ceil($('#timelineScroll').clientWidth/2)+30);
@@ -712,8 +712,8 @@ function renderEditableTextTrack(){
  track.querySelectorAll('[data-text-edge]').forEach(handle=>handle.onpointerdown=e=>{
  e.preventDefault();e.stopPropagation();let t=project.texts.find(x=>x.id===handle.dataset.textId);if(!t)return;
  checkpoint();selectedTextId=t.id;const origin=e.clientX,start=t.start,end=t.end,side=handle.dataset.textEdge;
- const move=ev=>{let d=(ev.clientX-origin)/timelinePixels();if(side==='left')t.start=cap(start+d,0,end-.1);else t.end=cap(end+d,start+.1,totalDuration());renderEditableTextTrack();applyPreview()};
- const up=()=>{window.removeEventListener('pointermove',move);touch();renderEditableTextTrack();renderTool()};
+ const move=ev=>{let d=(ev.clientX-origin)/timelinePixels();if(side==='left')t.start=cap(start+d,0,end-.1);else t.end=cap(end+d,start+.1,totalDuration());let el=track.querySelector('[data-timeline-text="'+t.id+'"]');if(el){el.style.left=(TRACK_LEFT+timelineGutter()+t.start*timelinePixels())+'px';el.style.width=Math.max(22,(t.end-t.start)*timelinePixels())+'px'}scheduleTrimPreview()};
+ const up=()=>{window.removeEventListener('pointermove',move);touch();renderEditableTextTrack();applyPreview();renderTool()};
  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});
  });
  let create=track.querySelector('#timelineCreateText');if(create)create.onclick=()=>createTextLayer('text');
@@ -729,7 +729,8 @@ function renderTextOverlay(){
 }
 function startTrim(e){e.preventDefault();e.stopPropagation();stopPlayback();let b=e.currentTarget,c=project.clips.find(c=>c.id===b.dataset.id);if(!c)return;selectedId=c.id;checkpoint();clipResize={id:c.id,side:b.dataset.trim,startX:e.clientX,oldStart:c.start,oldEnd:c.end,oldDuration:c.stillDuration,len:clipLen(c),sourceLen:assets.get(c.assetId)?.duration||c.end};window.addEventListener('pointermove',dragTrim);window.addEventListener('pointerup',endTrim,{once:true});window.addEventListener('pointercancel',endTrim,{once:true})}
 function bindTrimGrips(){} // Grip events bound after rebuilding the timeline
-function dragTrim(e){if(!clipResize)return;let info=clipResize,c=project.clips.find(c=>c.id===info.id);if(!c)return;let seconds=(e.clientX-info.startX)/timelinePixels(),delta=(info.side==='left'?seconds:seconds);if(c.kind==='image')c.stillDuration=cap(info.oldDuration+(info.side==='left'?-delta:delta),.3,20);else if(info.side==='left')c.start=cap(info.oldStart+delta*c.speed,0,info.oldEnd-.12);else c.end=cap(info.oldEnd+delta*c.speed,info.oldStart+.12,info.sourceLen);renderTimeline();applyPreview();}
+let trimPreviewFrame=0;function scheduleTrimPreview(){if(trimPreviewFrame)return;trimPreviewFrame=requestAnimationFrame(()=>{trimPreviewFrame=0;applyPreview()})}
+function dragTrim(e){if(!clipResize)return;let info=clipResize,c=project.clips.find(c=>c.id===info.id);if(!c)return;let seconds=(e.clientX-info.startX)/timelinePixels(),delta=(info.side==='left'?seconds:seconds);if(c.kind==='image')c.stillDuration=cap(info.oldDuration+(info.side==='left'?-delta:delta),.3,20);else if(info.side==='left')c.start=cap(info.oldStart+delta*c.speed,0,info.oldEnd-.12);else c.end=cap(info.oldEnd+delta*c.speed,info.oldStart+.12,info.sourceLen);renderTimeline();scheduleTrimPreview();}
 function endTrim(){if(!clipResize)return;let c=project.clips.find(x=>x.id===clipResize.id);if(c){const max=clipLen(c);c.keyframes=(c.keyframes||[]).filter(k=>k.at>=0&&k.at<=max+.001).map(k=>({...k,at:Math.min(k.at,max)}));}clipResize=null;window.removeEventListener('pointermove',dragTrim);touch();refreshEditor(true);logToast('Clip duration updated')}
 function ensureKeyframe(c,local){
  if(!c.keyframes)c.keyframes=[];
