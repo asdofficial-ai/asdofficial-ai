@@ -287,6 +287,49 @@
 .transport-right .quick-keyframe span{display:none}
 .transport-right{display:flex;align-items:center;gap:7px}
 @media(max-width:700px){.transport-right .quick-keyframe{width:38px;min-width:38px;height:37px}.transport-right #activeAspect{display:none}}
+
+/* ASD Motion Lab desktop workstation v4: CapCut-inspired THREE-PANEL workspace and full-width lower timeline */
+@media(min-width:981px){
+ body.asd-desktop-editing #editorView>.editor-layout{
+  display:grid!important;
+  grid-template-columns:clamp(210px,19vw,290px) minmax(0,1fr) clamp(265px,23vw,365px)!important;
+  grid-template-rows:36px minmax(0,1fr) 44px clamp(240px,38vh,360px)!important;
+  grid-template-areas:"tools preview inspector" "tools canvas inspector" "tools transport inspector" "timeline timeline timeline"!important;
+  gap:0!important;overflow:hidden!important;align-items:stretch!important;
+ }
+ body.asd-desktop-editing #editorView .editor-stage-column{display:contents!important}
+ body.asd-desktop-editing #editorView .preview-head{grid-area:preview;min-width:0;height:36px!important;min-height:0!important;flex:none!important;background:#10191e}
+ body.asd-desktop-editing #editorView .stage-wrap{grid-area:canvas;min-height:0!important;min-width:0!important;max-height:none!important;padding:12px!important}
+ body.asd-desktop-editing #editorView .stage{height:100%!important;min-height:0!important;max-height:100%!important;width:100%!important;max-width:100%!important}
+ body.asd-desktop-editing #editorView .transport{grid-area:transport;min-height:44px!important;height:44px!important;flex:none!important}
+ body.asd-desktop-editing #editorView .properties{grid-area:inspector;height:auto!important;min-height:0!important;overflow:hidden!important;border-left:1px solid #33424a}
+ body.asd-desktop-editing #editorView .timeline-shell{grid-area:timeline;height:auto!important;min-height:0!important;flex:none!important;overflow:hidden!important;border-top:2px solid #32444c;padding:9px 15px!important}
+ body.asd-desktop-editing #editorView .timeline-scroll{max-height:calc(38vh - 76px)!important;overflow:auto!important}
+ body.asd-desktop-editing #editorView #toolDock{
+  grid-area:tools!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  align-content:start!important;align-items:start!important;justify-content:start!important;
+  width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;
+  overflow-y:auto!important;overflow-x:hidden!important;flex:none!important;
+  padding:12px 8px!important;gap:5px!important;background:#111b21;border-right:1px solid #34444d;
+ }
+ body.asd-desktop-editing #editorView #toolDock .dock-tool{
+  width:100%!important;min-width:0!important;height:64px!important;min-height:64px!important;
+  padding:5px 2px!important;font-size:10px!important;line-height:1.2!important;
+  white-space:normal!important;overflow-wrap:anywhere!important;
+ }
+ body.asd-desktop-editing #editorView #toolDock .dock-tool span{font-size:21px!important}
+ body.asd-desktop-editing #editorView>.tool-dock{order:initial!important}
+ body.asd-desktop-editing #editorView .timeline-tip{display:none!important}
+ body.asd-desktop-editing #editorView .timeline-top{margin-bottom:6px!important}
+ body.asd-desktop-editing #editorView .properties-footer{display:none}
+ body.asd-desktop-editing #editorView .properties-header{padding:11px 13px!important}
+}
+@media(min-width:981px) and (max-height:750px){
+ body.asd-desktop-editing #editorView>.editor-layout{grid-template-rows:32px minmax(0,1fr) 40px 32vh!important}
+ body.asd-desktop-editing #editorView .timeline-scroll{max-height:calc(32vh - 65px)!important}
+ body.asd-desktop-editing #editorView .preview-head{height:32px!important}
+ body.asd-desktop-editing #editorView .transport{height:40px!important;min-height:40px!important}
+}
 </style></head>
 <body>
 <div id="app" class="app">
@@ -398,7 +441,14 @@ function undoAction(){if(!history.length)return logToast('Nothing to undo');redo
 function redoAction(){if(!redo.length)return logToast('Nothing to redo');history.push(JSON.stringify({clips:project.clips,texts:project.texts,music:project.music,canvasRatio:project.canvasRatio}));restore(redo.pop())}
 function createProject(kind='video'){selectedTextId=null;project={id:uid(),name:'Untitled '+(kind==='photo'?'photo':'video')+' · '+new Date().toLocaleDateString(),kind,clips:[],texts:[],music:null,canvasRatio:'adaptive',created:Date.now(),updated:Date.now()};selectedId=null;history=[];redo=[];playhead=0;touch();navigate('editor');if(kind==='photo')$('#fileInput').click();else openVault()}
 async function loadProject(id){let p=projects.find(p=>p.id===id);if(!p)return;project=structuredClone(p);selectedTextId=project.texts?.[0]?.id||null;selectedId=project.clips[0]?.id||null;playhead=0;history=[];redo=[];navigate('editor')}
-function navigate(v){stopPlayback();currentView=v;document.body.classList.toggle('asd-desktop-editing',v==='editor');for(let id of ['home','projects','profile','editor'])$('#'+id+'View').classList.toggle('hidden',id!==v);$$('.nav-link').forEach(e=>e.classList.toggle('active',e.dataset.action===v));if(v==='home'||v==='projects')renderHomeCards();if(v==='profile')renderProfile();if(v==='editor')refreshEditor(true);window.scrollTo({top:0,behavior:'instant'})}
+function syncDesktopEditorLayout(){
+ const layout=$('.editor-layout'),dock=$('#toolDock'),view=$('#editorView');
+ if(!layout||!dock||!view)return;
+ if(window.innerWidth>=981){if(dock.parentElement!==layout)layout.append(dock)}
+ else if(dock.parentElement!==view)view.append(dock);
+}
+window.addEventListener('resize',()=>{if(currentView==='editor')syncDesktopEditorLayout()});
+function navigate(v){stopPlayback();currentView=v;document.body.classList.toggle('asd-desktop-editing',v==='editor');for(let id of ['home','projects','profile','editor'])$('#'+id+'View').classList.toggle('hidden',id!==v);$$('.nav-link').forEach(e=>e.classList.toggle('active',e.dataset.action===v));if(v==='home'||v==='projects')renderHomeCards();if(v==='profile')renderProfile();if(v==='editor'){syncDesktopEditorLayout();refreshEditor(true)}window.scrollTo({top:0,behavior:'instant'})}
 function renderSideProjects(){let box=$('#navProjects');box.innerHTML=projects.sort((a,b)=>b.updated-a.updated).slice(0,8).map(p=>'<button data-project="'+p.id+'">◫ &nbsp;'+esc(p.name)+'</button>').join('');box.querySelectorAll('[data-project]').forEach(b=>b.onclick=()=>loadProject(b.dataset.project))}
 function cardProject(p){let media=assets.get(p.clips[0]?.assetId);let thumbnail=media?.thumbnail?'<img src="'+media.thumbnail+'" alt="">':'<b>✦</b>';return '<button class="project-card" data-project="'+p.id+'"><div class="project-thumb">'+thumbnail+'</div><div class="project-details"><strong>'+esc(p.name)+'</strong><p>'+p.clips.length+' clip'+(p.clips.length===1?'':'s')+' · '+new Date(p.updated).toLocaleDateString()+'</p></div></button>'}
 function renderHomeCards(){let q=$('#globalSearch').value.toLowerCase();let filtered=projects.filter(p=>p.name.toLowerCase().includes(q)).sort((a,b)=>b.updated-a.updated);let html=filtered.map(cardProject).join('')||'<div class="empty-projects"><strong>No projects here yet.</strong><p>Start your first edit. Your projects will appear here.</p><button class="ghost" data-action="newvideo">＋ Create a project</button></div>';for(let dest of ['#homeProjects','#allProjects']){$(dest).innerHTML=html;$(dest).querySelectorAll('[data-project]').forEach(b=>b.onclick=()=>loadProject(b.dataset.project));$(dest).querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>createProject('video'))}}
@@ -550,7 +600,7 @@ function onTimelineScroll(){
 
 
 function addTimelineZoomControls(){const target=document.querySelector('#clipCount');if(!target||document.querySelector('#timelineZoomControls'))return;const bar=document.createElement('span');bar.id='timelineZoomControls';bar.style.cssText='display:inline-flex;align-items:center;gap:5px;margin-left:10px;vertical-align:middle';bar.innerHTML='<button type="button" aria-label="Zoom timeline out" data-z="-1">−</button><span id="timelineZoomValue">100%</span><button type="button" aria-label="Zoom timeline in" data-z="1">＋</button>';target.after(bar);bar.querySelectorAll('button').forEach(b=>{b.style.cssText='background:#12343b;color:#9cf3e4;border:1px solid #397d77;border-radius:7px;padding:5px 10px;font-size:17px';b.onclick=()=>{timelineZoom=Math.max(.08,Math.min(64,timelineZoom*(b.dataset.z==='1'?1.6:1/1.6)));renderTimeline();syncPlayheadPosition(true)}})}
-function ensureSelectionActions(){let host=$('#timelineAdd')?.parentElement;if(!host)return;let del=$('#asdDeleteClip');if(!del){del=document.createElement('button');del.id='asdDeleteClip';del.type='button';del.textContent='▤ Delete';del.title='Delete selected clip';del.style.cssText='border:1px solid #a86b75;color:#ffd9dd;background:#43262d;border-radius:8px;padding:8px 10px;margin-right:6px;font-weight:700';host.insertBefore(del,$('#timelineAdd'));del.onclick=()=>{if(!selected())return;removeClip();logToast('Selected clip deleted')};}del.disabled=!selected();del.style.opacity=selected()?'1':'.4';}
+function ensureSelectionActions(){let host=$('#timelineAdd')?.parentElement;if(!host)return;let del=$('#asdDeleteClip');if(!del){del=document.createElement('button');del.id='asdDeleteClip';del.type='button';del.innerHTML='🗑';del.setAttribute('aria-label','Delete selected clip');del.title='Delete selected clip';del.style.cssText='border:1px solid #41505a;color:#dce5eb;background:#202a32;border-radius:6px;padding:6px 10px;margin-right:6px;font-size:18px;line-height:1.1';host.insertBefore(del,$('#timelineAdd'));del.onclick=()=>{if(!selected())return;removeClip();logToast('Selected clip deleted')};}del.disabled=!selected();del.style.opacity=selected()?'1':'.4';}
 function renderTimeline(){
  ensureSelectionActions();
  let kf=$('#quickKeyframe'),transport=$('.transport-right');
