@@ -194,6 +194,40 @@
  .tool-dock{height:55px;flex-basis:55px}
  .stage-wrap{min-height:140px;padding:10px 16px}
 }
+
+/* Desktop layout correction after real 1582x801 screenshot: keep tools visible and preview usable */
+@media(min-width:981px){
+ #editorView{display:flex;flex-direction:column;height:calc(100dvh - 64px);min-height:640px;overflow:hidden}
+ #editorView.hidden{display:none!important}
+ #editorView>.editor-top{flex:0 0 62px;height:62px}
+ #editorView>.editor-layout{flex:1 1 auto;height:auto;min-height:0;max-height:none;grid-template-columns:minmax(0,1fr) clamp(275px,22vw,340px)}
+ #editorView>.tool-dock{flex:0 0 66px;height:66px;order:2;overflow-x:auto}
+ #editorView .editor-stage-column{min-height:0}
+ #editorView .stage-wrap{flex:1 1 auto;min-height:240px;max-height:none;padding:12px 24px}
+ #editorView .stage{width:min(100%,840px);height:100%;max-height:100%;min-height:0}
+ #editorView .transport{flex:0 0 52px;min-height:52px}
+ #editorView .below-preview-tools{padding:4px 12px;min-height:40px}
+ #editorView .timeline-shell{flex:0 0 240px;height:240px;min-height:240px;padding:9px 14px;overflow:hidden}
+ #editorView .timeline-top{margin-bottom:4px}
+ #editorView .timeline-scroll{max-height:166px;overflow-x:auto;overflow-y:auto}
+ #editorView .properties{min-height:0}
+ #editorView .properties-header{padding:15px 16px 12px}
+ #editorView .properties-header h3{font-size:20px;margin:6px 0 3px}
+ #editorView .properties-footer{padding:10px 15px}
+ #editorView #canvasRatioBtn{background:#182d36!important;color:#b8eae8!important;border:1px solid #35616a!important;border-radius:8px!important;font-size:11px!important;padding:7px 12px!important}
+}
+@media(min-width:981px) and (max-height:820px){
+ #editorView .timeline-shell{flex-basis:205px;height:205px;min-height:205px}
+ #editorView .timeline-scroll{max-height:135px}
+ #editorView .stage-wrap{min-height:210px;padding:8px 18px}
+ #editorView>.tool-dock{flex-basis:58px;height:58px}
+ #editorView .transport{flex-basis:46px;min-height:46px}
+}
+@media(min-width:981px) and (max-height:690px){
+ #editorView{overflow-y:auto}
+ #editorView>.editor-layout{flex:0 0 510px;min-height:510px}
+ #editorView .stage-wrap{min-height:225px}
+}
 </style>
 <style>
 /* ASD Motion Lab: compact editing transport inspired by standard NLE workflows */
