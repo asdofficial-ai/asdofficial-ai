@@ -157,6 +157,43 @@
  .below-preview-tools{gap:12px;padding:12px 20px;flex-wrap:wrap}
 }
 @media (min-width:1500px){.editor-layout{grid-template-columns:minmax(0,1fr) 420px}.editor-stage-column{padding-inline:12px}.tool-content{padding:24px 28px}}
+
+/* ASD Motion Lab desktop workstation: wide preview, dedicated inspector and usable timeline */
+@media (min-width:981px){
+ .app{min-height:100dvh}
+ .side-nav{width:204px;padding:19px 11px}
+ .main{min-width:0;width:calc(100% - 204px)}
+ .editor-layout{grid-template-columns:minmax(0,1fr) clamp(290px,22vw,365px);height:calc(100dvh - 66px);min-height:660px;max-height:none;overflow:hidden}
+ .editor-stage-column{height:100%;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+ .preview-head{height:46px;flex:0 0 46px}
+ .stage-wrap{flex:1 1 auto;min-height:200px;max-height:none;padding:18px 24px;overflow:hidden}
+ .stage{width:min(100%,980px);max-height:100%;height:100%;min-height:0}
+ .stage.aspect-original{max-height:100%;min-height:0}
+ .below-preview-tools{flex:0 0 auto}
+ .tool-dock{height:66px;flex:0 0 66px;justify-content:flex-start;padding:6px 12px;gap:3px}
+ .dock-tool{width:74px;font-size:10px}
+ .dock-tool span{font-size:21px}
+ .timeline-shell{flex:0 0 auto;min-height:270px;height:clamp(270px,32vh,390px);overflow:hidden;padding:12px 18px}
+ .timeline-top{margin-bottom:9px}
+ .timeline-scroll{max-height:calc(100% - 48px);overflow:auto}
+ .properties{height:100%;min-width:0;overflow:hidden}
+ .properties-header{padding:20px 18px 15px}
+ .tool-content{padding:18px 18px 35px;overscroll-behavior:contain}
+ .tool-tile{min-height:66px}
+}
+@media (min-width:1500px){
+ .side-nav{width:228px}
+ .main{width:calc(100% - 228px)}
+ .editor-layout{grid-template-columns:minmax(0,1fr) 360px}
+ .stage-wrap{padding:22px 36px}
+ .timeline-shell{height:clamp(300px,34vh,440px)}
+}
+@media (min-width:981px) and (max-height:760px){
+ .editor-layout{min-height:0}
+ .timeline-shell{height:255px;min-height:255px}
+ .tool-dock{height:55px;flex-basis:55px}
+ .stage-wrap{min-height:140px;padding:10px 16px}
+}
 </style>
 <style>
 /* ASD Motion Lab: compact editing transport inspired by standard NLE workflows */
