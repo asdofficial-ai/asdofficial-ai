@@ -251,6 +251,35 @@
  body.asd-desktop-editing #editorView .timeline-shell{flex-basis:210px;height:210px}
  body.asd-desktop-editing #editorView .timeline-scroll{max-height:150px}
 }
+
+/* Desktop v3: recover preview height by removing the redundant ratio row and compressing timeline */
+@media(min-width:981px){
+ body.asd-desktop-editing #belowPreviewTools{display:none!important}
+ body.asd-desktop-editing #editorView>.editor-layout{min-height:0!important}
+ body.asd-desktop-editing #editorView .editor-stage-column{min-height:0!important;overflow:hidden!important}
+ body.asd-desktop-editing #editorView .preview-head{flex:0 0 38px!important;height:38px!important}
+ body.asd-desktop-editing #editorView .stage-wrap{flex:1 1 auto!important;min-height:0!important;max-height:none!important;padding:10px 14px!important}
+ body.asd-desktop-editing #editorView .stage{height:100%!important;max-height:100%!important;min-height:0!important;width:min(100%,1050px)!important}
+ body.asd-desktop-editing #editorView .transport{flex:0 0 43px!important;min-height:43px!important}
+ body.asd-desktop-editing #editorView .timeline-shell{flex:0 0 178px!important;height:178px!important;min-height:178px!important;padding:7px 12px!important}
+ body.asd-desktop-editing #editorView .timeline-top{margin-bottom:2px!important;min-height:31px}
+ body.asd-desktop-editing #editorView .timeline-scroll{max-height:126px!important}
+ body.asd-desktop-editing #editorView>.tool-dock{flex:0 0 57px!important;height:57px!important;padding:3px 10px!important}
+ body.asd-desktop-editing #editorView .dock-tool{min-width:68px;width:68px;gap:2px;font-size:9px}
+ body.asd-desktop-editing #editorView .dock-tool span{font-size:18px}
+ body.asd-desktop-editing #canvasRatioBtn{font-size:10px!important;min-height:29px!important;padding:5px 9px!important}
+ body.asd-desktop-editing #editorView .properties-header{padding:12px 15px!important}
+ body.asd-desktop-editing #editorView .properties-header h3{font-size:19px}
+ body.asd-desktop-editing #editorView .stage-empty{padding:12px}
+ body.asd-desktop-editing #editorView .stage-empty>span{font-size:34px}
+ body.asd-desktop-editing #editorView .stage-empty h3{font-size:18px}
+}
+@media(min-width:981px) and (max-height:690px){
+ body.asd-desktop-editing #editorView{min-height:0!important;overflow:hidden!important}
+ body.asd-desktop-editing #editorView>.editor-layout{flex:1 1 auto!important;min-height:0!important}
+ body.asd-desktop-editing #editorView .timeline-shell{flex-basis:145px!important;height:145px!important;min-height:145px!important}
+ body.asd-desktop-editing #editorView .timeline-scroll{max-height:98px!important}
+}
 </style>
 <style>
 /* ASD Motion Lab: compact editing transport inspired by standard NLE workflows */
@@ -525,6 +554,9 @@ function ensureSelectionActions(){let host=$('#timelineAdd')?.parentElement;if(!
 function renderTimeline(){
  ensureSelectionActions();
  let kf=$('#quickKeyframe'),transport=$('.transport-right');
+ if(window.innerWidth>=981){let ratio=$('#canvasRatioBtn'),head=$('.preview-head-right');if(ratio&&head&&ratio.parentElement!==head)head.append(ratio)}
+ else{let ratio=$('#canvasRatioBtn'),row=$('#belowPreviewTools');if(ratio&&row&&ratio.parentElement!==row)row.append(ratio)}
+
  if(kf&&transport&&kf.parentElement!==transport){transport.prepend(kf);kf.title='Add keyframe to the selected clip at the playhead';}
  addTimelineZoomControls();const zoomLabel=document.querySelector('#timelineZoomValue');if(zoomLabel)zoomLabel.textContent=Math.round(timelineZoom*100)+'%';
  if(!project)return;
